@@ -19,6 +19,7 @@ final class TodayViewModel: ObservableObject {
     @Published var lightChain: [DayRecord] = []
     @Published var commitmentText: String = ""
     @Published var locale: Locale = .autoupdatingCurrent
+    @Published var monthRecords: [DayRecord] = []
 
     private let userRepository: UserRepository
     private let loadTodayState: LoadTodayStateUseCase
@@ -28,10 +29,13 @@ final class TodayViewModel: ObservableObject {
     private let loadLightChain: LoadLightChainUseCase
     private let getStreak: GetStreakUseCase
     private let updateSettingsUseCase: UpdateSettingsUseCase
+    private let loadMonthUseCase: LoadMonthRecordsUseCase
     let dateHelper: DaylightDateHelper
     private let notificationScheduler: NotificationScheduler
 
     private var user: User?
+
+    var currentUserId: String? { user?.id }
 
     init(userRepository: UserRepository,
          loadTodayState: LoadTodayStateUseCase,
@@ -41,6 +45,7 @@ final class TodayViewModel: ObservableObject {
         loadLightChain: LoadLightChainUseCase,
         getStreak: GetStreakUseCase,
         updateSettings: UpdateSettingsUseCase,
+        loadMonth: LoadMonthRecordsUseCase,
         dateHelper: DaylightDateHelper,
         notificationScheduler: NotificationScheduler) {
         self.userRepository = userRepository
@@ -51,8 +56,11 @@ final class TodayViewModel: ObservableObject {
         self.loadLightChain = loadLightChain
         self.getStreak = getStreak
         self.updateSettingsUseCase = updateSettings
+        self.loadMonthUseCase = loadMonth
         self.dateHelper = dateHelper
         self.notificationScheduler = notificationScheduler
+        // 初始化时同步已保存语言
+        self.locale = LanguageManager.shared.currentLocale
     }
 
     func onAppear() {
@@ -206,5 +214,15 @@ final class TodayViewModel: ObservableObject {
     func setLanguage(_ code: String?) {
         LanguageManager.shared.setLanguage(code)
         locale = LanguageManager.shared.currentLocale
+    }
+
+    func loadMonth(_ month: Date) async {
+        guard let user = user, let settings = state.settings else { return }
+        do {
+            let records = try await loadMonthUseCase.execute(userId: user.id, month: month, settings: settings)
+            monthRecords = records
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
     }
 }

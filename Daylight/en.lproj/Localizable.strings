@@ -34,3 +34,23 @@
 "settings.language.system" = "System";
 "settings.dev.section" = "Developer";
 "settings.dev.goto.night" = "Open night guard page";
+
+"lightchain.title" = "Light Chain";
+"lightchain.subtitle" = "Keep all your lights shining every night.";
+"lightchain.calendar" = "Calendar";
+"lightchain.streak.title" = "Streak";
+"lightchain.streak.subtitle" = "Current: %d days · Longest: %d days";
+"lightchain.streak.current" = "Current";
+"lightchain.streak.longest" = "Longest";
+"lightchain.detail.title" = "Details";
+"lightchain.detail.empty" = "No commitment written";
+"lightchain.detail.sleep" = "Sleep confirmed at %@";
+"lightchain.detail.reject" = "Times continued: %d";
+
+/* LightChain primary card */
+"lightchain.card.title" = "Light Chain";
+"lightchain.card.subtitle" = "Keep all your lights shining every night.";
+"lightchain.card.current" = "Current streak";
+"lightchain.card.longest" = "Longest streak";
+"lightchain.card.days" = "days";
+"lightchain.card.calendar.title" = "Streak calendar";

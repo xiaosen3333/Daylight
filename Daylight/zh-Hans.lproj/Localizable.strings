@@ -34,3 +34,23 @@
 "settings.language.system" = "跟随系统";
 "settings.dev.section" = "开发调试";
 "settings.dev.goto.night" = "跳转到夜间守护页";
+
+"lightchain.title" = "灯链";
+"lightchain.subtitle" = "让你的两盏灯每天都亮起来。";
+"lightchain.calendar" = "日历";
+"lightchain.streak.title" = "连续天数";
+"lightchain.streak.subtitle" = "当前：%d 天 · 最长：%d 天";
+"lightchain.streak.current" = "当前";
+"lightchain.streak.longest" = "最长";
+"lightchain.detail.title" = "详情";
+"lightchain.detail.empty" = "今天还没有写承诺";
+"lightchain.detail.sleep" = "睡觉时间：%@";
+"lightchain.detail.reject" = "继续玩手机次数：%d";
+
+/* LightChain primary card */
+"lightchain.card.title" = "灯链";
+"lightchain.card.subtitle" = "让你的光在每个夜晚都亮起。";
+"lightchain.card.current" = "当前连续天数";
+"lightchain.card.longest" = "最长连续天数";
+"lightchain.card.days" = "天";
+"lightchain.card.calendar.title" = "连续天数日历";

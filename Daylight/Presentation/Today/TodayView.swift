@@ -24,7 +24,7 @@ struct TodayView: View {
                         }
                         .frame(height: 0)
 
-                        VStack(spacing: showStats ? 12 : 16) {
+                        VStack(spacing: showStats ? 0 : 16) {
                             HStack {
                                 Spacer()
                                 Button {
@@ -41,7 +41,7 @@ struct TodayView: View {
                             .padding(.top, 44)
                             .padding(.trailing, 20)
 
-                            VStack(spacing: showStats ? 0 : 24) {
+                            VStack(spacing: showStats ? -20 : 24) {
                                 glowingSun
                                     .padding(.top, showStats ? 20 : 40)
 
@@ -64,7 +64,7 @@ struct TodayView: View {
                             .offset(y: showStats ? -90 : 0)
                             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showStats)
 
-                            Spacer(minLength: showStats ? -100 : 50)
+                            Spacer(minLength: showStats ? -80 : 50)
                             
                             lightChainBar
                                 .padding(.bottom, 28)
@@ -92,10 +92,13 @@ struct TodayView: View {
                             }
                         }
                     )
-                }
             }
+        }
             .ignoresSafeArea()
-            .onAppear { viewModel.onAppear() }
+            .onAppear {
+                viewModel.onAppear()
+                print("TodayView locale: \(viewModel.locale.identifier)")
+            }
             .environment(\.locale, viewModel.locale)
             .navigationDestination(isPresented: $showDayPage) {
                 DayCommitmentPage(viewModel: viewModel)
@@ -211,181 +214,21 @@ struct TodayView: View {
 
     // MARK: - Stats cards (inline)
     private var statsGrid: some View {
-        let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
-        return LazyVGrid(columns: columns, spacing: 14) {
-            sunCard
-            calendarCard
-            detailCard
-            streakCard
-        }
-    }
-
-    private var sunCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.32))
-                    .frame(width: 150, height: 150)
-                    .blur(radius: 30)
-                Circle()
-                    .fill(Color(red: 255/255, green: 236/255, blue: 173/255))
-                    .frame(width: 100, height: 100)
+        LightChainVisualizationGallery(
+            records: viewModel.monthRecords,
+            selectedRecord: selectedRecord,
+            streak: viewModel.state.streak,
+            currentMonth: currentMonth,
+            locale: viewModel.locale,
+            onMonthChange: { newMonth in
+                currentMonth = newMonth
+                Task { await loadStatsData(month: newMonth) }
+            },
+            onSelect: { record in
+                selectedRecord = record
             }
-            Text(NSLocalizedString("lightchain.title", comment: ""))
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(Color(red: 236/255, green: 246/255, blue: 225/255))
-            Text(NSLocalizedString("lightchain.subtitle", comment: ""))
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.white.opacity(0.85))
-            HStack(spacing: 10) {
-                ForEach(0..<5) { index in
-                    Circle()
-                        .fill(index < 4 ? Color(red: 255/255, green: 236/255, blue: 173/255) : Color.white.opacity(0.25))
-                        .frame(width: 10, height: 10)
-                }
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(LinearGradient(colors: [Color(red: 78/255, green: 125/255, blue: 124/255),
-                                              Color(red: 63/255, green: 102/255, blue: 103/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
         )
-    }
-
-    private var calendarCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Button { changeMonth(by: -1) } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(Color(red: 74/255, green: 92/255, blue: 70/255))
-                }
-                Spacer()
-                Text(monthTitle(currentMonth))
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(red: 68/255, green: 85/255, blue: 63/255))
-                Spacer()
-                Button { changeMonth(by: 1) } label: {
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(Color(red: 74/255, green: 92/255, blue: 70/255))
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.white.opacity(0.28))
-            .cornerRadius(14)
-
-            VStack(spacing: 10) {
-                weekdayHeader
-                    .foregroundColor(Color(red: 74/255, green: 92/255, blue: 70/255).opacity(0.9))
-                if isLoadingStats {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(Color(red: 74/255, green: 92/255, blue: 70/255))
-                } else {
-                    calendarGrid
-                }
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(LinearGradient(colors: [Color(red: 248/255, green: 243/255, blue: 207/255),
-                                              Color(red: 242/255, green: 234/255, blue: 187/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
-        )
-    }
-
-    private var detailCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(NSLocalizedString("lightchain.detail.title", comment: ""))
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(Color(red: 255/255, green: 236/255, blue: 173/255))
-            if let record = selectedRecord {
-                Text(formattedDate(record))
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.85))
-                if let text = record.commitmentText, !text.isEmpty {
-                    Text(text)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white.opacity(0.92))
-                } else {
-                    Text(NSLocalizedString("lightchain.detail.empty", comment: ""))
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
-                }
-                if let sleep = record.sleepConfirmedAt {
-                    let time = viewModel.dateHelper.shortTimeFormatter.string(from: sleep)
-                    Text(String(format: NSLocalizedString("lightchain.detail.sleep", comment: ""), time))
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-                Text(String(format: NSLocalizedString("lightchain.detail.reject", comment: ""), record.nightRejectCount))
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.8))
-            } else {
-                Text(NSLocalizedString("lightchain.detail.empty", comment: ""))
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(LinearGradient(colors: [Color(red: 22/255, green: 44/255, blue: 54/255),
-                                              Color(red: 34/255, green: 61/255, blue: 68/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
-        )
-    }
-
-    private var streakCard: some View {
-        let current = viewModel.state.streak?.current ?? 0
-        let longest = viewModel.state.streak?.longest ?? 0
-        return VStack(alignment: .leading, spacing: 12) {
-            Text(NSLocalizedString("lightchain.streak.title", comment: ""))
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(Color(red: 255/255, green: 236/255, blue: 173/255))
-            Text(String(format: NSLocalizedString("lightchain.streak.subtitle", comment: ""), current, longest))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.85))
-            HStack(spacing: 14) {
-                streakPill(value: current)
-                streakPill(value: longest)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(LinearGradient(colors: [Color(red: 20/255, green: 43/255, blue: 49/255),
-                                              Color(red: 30/255, green: 60/255, blue: 66/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
-        )
-    }
-
-    private func streakPill(value: Int) -> some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                ForEach(0..<3) { index in
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(value > index ? Color(red: 255/255, green: 236/255, blue: 173/255) : Color.white.opacity(0.2))
-                        .frame(width: 20, height: 48)
-                        .shadow(color: Color(red: 255/255, green: 236/255, blue: 173/255).opacity(value > index ? 0.4 : 0), radius: 8)
-                }
-            }
-            Text("\(value)")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white.opacity(0.9))
-        }
-        .frame(maxWidth: .infinity)
+        .environment(\.locale, viewModel.locale)
     }
 
     private var weekdayHeader: some View {
@@ -460,7 +303,10 @@ struct TodayView: View {
         }
     }
 
-    private func loadStatsData() async {
+    private func loadStatsData(month: Date? = nil) async {
+        if let month = month {
+            currentMonth = month
+        }
         isLoadingStats = true
         if let mock = MockSyncDataLoader.shared.load() {
             applyMock(mock)
@@ -493,7 +339,7 @@ struct TodayView: View {
     private func changeMonth(by offset: Int) {
         if let newMonth = viewModel.dateHelper.calendar.date(byAdding: .month, value: offset, to: currentMonth) {
             currentMonth = newMonth
-            Task { await loadStatsData() }
+            Task { await loadStatsData(month: newMonth) }
         }
     }
 

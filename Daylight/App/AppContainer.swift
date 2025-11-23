@@ -36,6 +36,7 @@ final class AppContainer: ObservableObject {
                 let loadLightChain = LoadLightChainUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let streak = GetStreakUseCase(dayRecordRepository: dayRecordRepository)
                 let updateSettings = UpdateSettingsUseCase(settingsRepository: settingsRepository)
+                let loadMonth = LoadMonthRecordsUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let scheduler = NotificationScheduler()
 
                 let viewModel = TodayViewModel(
@@ -47,6 +48,7 @@ final class AppContainer: ObservableObject {
                     loadLightChain: loadLightChain,
                     getStreak: streak,
                     updateSettings: updateSettings,
+                    loadMonth: loadMonth,
                     dateHelper: dateHelper,
                     notificationScheduler: scheduler
                 )
