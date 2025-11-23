@@ -31,6 +31,10 @@
 "notification.night.second.noCommitment.body.nickname" = "If you want, leave a line for tonight and take care of yourself.";
 "notification.night.second.noCommitment.title" = "Today was a lot";
 "notification.night.second.noCommitment.body" = "If you want, leave a line for tonight and take care of yourself.";
+"notification.permission.title" = "Turn on notifications";
+"notification.permission.body" = "Turn on notifications so we can remind you about your daytime commitment and night guard.";
+"notification.permission.settings" = "Open Settings";
+"notification.permission.later" = "Maybe later";
 
 "commit.title" = "Write a line for your night self";
 "commit.title.full" = "If you turn in early tonight, how will you feel?";

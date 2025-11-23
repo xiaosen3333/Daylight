@@ -21,6 +21,7 @@ final class TodayViewModel: ObservableObject {
     @Published var locale: Locale = .autoupdatingCurrent
     @Published var monthRecords: [DayRecord] = []
     @Published var nickname: String = ""
+    @Published var showNotificationPrompt: Bool = false
 
     private let userRepository: UserRepository
     private let loadTodayState: LoadTodayStateUseCase
@@ -104,6 +105,7 @@ final class TodayViewModel: ObservableObject {
             try await refreshLightChain()
             try await refreshStreak()
             await scheduleNotifications()
+            await checkNotificationPermissionAfterCommit()
         } catch {
             state.errorMessage = error.localizedDescription
         }
@@ -263,6 +265,16 @@ final class TodayViewModel: ObservableObject {
             monthRecords = records
         } catch {
             state.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func checkNotificationPermissionAfterCommit() async {
+        // 若未授权则请求一次；仍未开启则提示去设置
+        let enabled = await notificationScheduler.notificationsEnabled()
+        if enabled { return }
+        let granted = await notificationScheduler.requestAuthorization()
+        if !granted {
+            showNotificationPrompt = true
         }
     }
 }

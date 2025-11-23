@@ -29,6 +29,24 @@ struct NotificationScheduler {
         }
     }
 
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            center.getNotificationSettings { settings in
+                continuation.resume(returning: settings.authorizationStatus)
+            }
+        }
+    }
+
+    func notificationsEnabled() async -> Bool {
+        let status = await authorizationStatus()
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
+
     func reschedule(settings: Settings, nightReminderNeeded: Bool, context: NotificationContext) async {
         _ = await requestAuthorization()
         center.removePendingNotificationRequests(withIdentifiers: [dayReminderId] + nightReminderIds + legacyNightReminderIds)

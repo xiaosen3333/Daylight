@@ -31,6 +31,10 @@
 "notification.night.second.noCommitment.body.nickname" = "如果想要，现在也能为夜晚留一句话，好好照顾自己。";
 "notification.night.second.noCommitment.title" = "今天也辛苦了";
 "notification.night.second.noCommitment.body" = "现在也可以为夜晚留一句话，好好照顾自己。";
+"notification.permission.title" = "开启通知提醒";
+"notification.permission.body" = "开启通知，白昼承诺和夜间守护才能按时提醒你。";
+"notification.permission.settings" = "去设置";
+"notification.permission.later" = "稍后再说";
 
 "commit.title" = "写一句话给今晚的你";
 "commit.title.full" = "如果今晚早点休息，你会更舒服吗？";

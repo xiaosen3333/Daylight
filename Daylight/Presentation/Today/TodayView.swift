@@ -1,8 +1,10 @@
 import SwiftUI
+import UIKit
 
 /// 主页面对齐 docs/ui/mainscreen.png
 struct TodayView: View {
     @StateObject var viewModel: TodayViewModel
+    @Environment(\.openURL) private var openURL
     @State private var showDayPage = false
     @State private var showNightPage = false
     @State private var showSettingsPage = false
@@ -123,6 +125,18 @@ struct TodayView: View {
                 }
             } message: {
                 Text(viewModel.state.errorMessage ?? "")
+            }
+            .alert(NSLocalizedString("notification.permission.title", comment: ""),
+                   isPresented: $viewModel.showNotificationPrompt) {
+                Button(NSLocalizedString("notification.permission.settings", comment: "")) {
+                    openSettings()
+                    viewModel.showNotificationPrompt = false
+                }
+                Button(NSLocalizedString("notification.permission.later", comment: ""), role: .cancel) {
+                    viewModel.showNotificationPrompt = false
+                }
+            } message: {
+                Text(NSLocalizedString("notification.permission.body", comment: ""))
             }
         }
     }
@@ -372,6 +386,11 @@ struct TodayView: View {
             return formatter.string(from: date)
         }
         return record.date
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
     }
 
     private func monthGridData() -> [[DayCell?]] {
