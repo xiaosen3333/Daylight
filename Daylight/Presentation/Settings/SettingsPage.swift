@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct SettingsPage: View {
     @ObservedObject var viewModel: TodayViewModel
@@ -10,7 +11,10 @@ struct SettingsPage: View {
     @State private var nightEnd: Date = Date()
     @State private var nightInterval: Int = 30
     @State private var nightEnabled: Bool = true
+    @State private var showCommitmentInNotification: Bool = true
+    @State private var nickname: String = ""
     @State private var didLoad = false
+    @State private var didSyncInitial = false
 
     private let intervals = Array(stride(from: 10, through: 120, by: 5))
 
@@ -19,6 +23,7 @@ struct SettingsPage: View {
             Color(red: 93/255, green: 140/255, blue: 141/255).ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 24) {
+                    profileSection
                     reminderSection
                     languageSection
                     devSection
@@ -45,11 +50,47 @@ struct SettingsPage: View {
             }
         }
         .onAppear { syncWithSettings() }
-        .onChange(of: dayReminder) { _, newValue in persistSettings(day: newValue, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled) }
-        .onChange(of: nightStart) { _, newValue in persistSettings(day: dayReminder, nightStart: newValue, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled) }
-        .onChange(of: nightEnd) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: newValue, interval: nightInterval, enabled: nightEnabled) }
-        .onChange(of: nightInterval) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: newValue, enabled: nightEnabled) }
-        .onChange(of: nightEnabled) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: newValue) }
+        .onChange(of: dayReminder) { _, newValue in persistSettings(day: newValue, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
+        .onChange(of: nightStart) { _, newValue in persistSettings(day: dayReminder, nightStart: newValue, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
+        .onChange(of: nightEnd) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: newValue, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
+        .onChange(of: nightInterval) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: newValue, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
+        .onChange(of: nightEnabled) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: newValue, showCommitment: showCommitmentInNotification) }
+        .onChange(of: showCommitmentInNotification) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: newValue) }
+        .onReceive(viewModel.$state.map(\.settings)) { settings in
+            guard !didSyncInitial, settings != nil else { return }
+            syncWithSettings()
+            didSyncInitial = true
+        }
+        .onReceive(viewModel.$nickname) { name in
+            guard didLoad else { return }
+            nickname = name
+        }
+    }
+
+    private var profileSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(NSLocalizedString("settings.profile.section", comment: ""))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.white.opacity(0.9))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(NSLocalizedString("settings.profile.nickname", comment: ""))
+                    .foregroundColor(.white.opacity(0.8))
+                TextField(NSLocalizedString("settings.profile.nickname.placeholder", comment: ""), text: $nickname)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(12)
+                    .onChange(of: nickname) { _, newValue in
+                        guard didLoad else { return }
+                        Task { await viewModel.updateNickname(newValue) }
+                    }
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(16)
     }
 
     private var reminderSection: some View {
@@ -103,6 +144,17 @@ struct SettingsPage: View {
                 .pickerStyle(.menu)
                 .accentColor(.white)
             }
+
+            Toggle(isOn: $showCommitmentInNotification) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("settings.notification.showCommitment", comment: ""))
+                        .foregroundColor(.white.opacity(0.9))
+                    Text(NSLocalizedString("settings.notification.showCommitment.desc", comment: ""))
+                        .foregroundColor(.white.opacity(0.7))
+                        .font(.system(size: 13))
+                }
+            }
+            .toggleStyle(SwitchToggleStyle(tint: Color(red: 255/255, green: 236/255, blue: 173/255)))
         }
         .padding(16)
         .background(Color.white.opacity(0.08))
@@ -186,17 +238,20 @@ struct SettingsPage: View {
         nightEnd = viewModel.dateHelper.date(from: settings.nightReminderEnd)
         nightInterval = settings.nightReminderInterval
         nightEnabled = settings.nightReminderEnabled
+        showCommitmentInNotification = settings.showCommitmentInNotification
+        nickname = viewModel.nickname
         didLoad = true
     }
 
-    private func persistSettings(day: Date, nightStart: Date, nightEnd: Date, interval: Int, enabled: Bool) {
+    private func persistSettings(day: Date, nightStart: Date, nightEnd: Date, interval: Int, enabled: Bool, showCommitment: Bool) {
         guard didLoad else { return }
         Task {
             await viewModel.saveSettings(dayReminder: day,
                                          nightStart: nightStart,
                                          nightEnd: nightEnd,
                                          interval: interval,
-                                         nightEnabled: enabled)
+                                         nightEnabled: enabled,
+                                         showCommitmentInNotification: showCommitment)
         }
     }
 

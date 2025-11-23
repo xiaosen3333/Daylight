@@ -1,23 +1,52 @@
 /* English localization */
-"home.title" = "No late nights";
-"home.subtitle" = "Make a promise for tonight";
-"home.button" = "Get started";
+"home.title" = "Don't stay up—turn in early";
+"home.subtitle" = "Write what your daytime self wants to tell tonight's you";
+"home.button" = "Leave a line for tonight";
 
-"commit.title" = "Make a commitment for tonight";
-"commit.title.full" = "What will you gain if you don't stay up late tonight?";
-"commit.placeholder" = "What will you gain by not staying up late?";
-"commit.placeholder.short" = "Tonight I will…";
+"notification.day.title" = "Leave a line for tonight";
+"notification.day.body" = "What do you gain if you don't stay up tonight?";
+"notification.night.title" = "Night guard";
+"notification.night.body" = "Time for bed—light up tonight's lamp.";
+"notification.day.noCommitment.title.nickname" = "%@, leave a line for tonight";
+"notification.day.noCommitment.body.nickname" = "Daytime you is the clearest—want to write one line for tonight?";
+"notification.day.noCommitment.title" = "Leave a line for tonight";
+"notification.day.noCommitment.body" = "Daytime you is the clearest—want to write one line for tonight?";
+"notification.day.withCommitment.title.nickname" = "%@, you've already planned for tonight";
+"notification.day.withCommitment.body.nickname" = "Today's promise has lit the first light.";
+"notification.day.withCommitment.title" = "You've already written your promise";
+"notification.day.withCommitment.body" = "That daytime line will stay with you tonight.";
+"notification.night.first.title.nickname" = "%@, daytime you is reminding you";
+"notification.night.first.body.nickname" = "You wrote: \"%@\"";
+"notification.night.first.title" = "Daytime you is reminding you";
+"notification.night.first.body" = "You wrote: \"%@\"";
+"notification.night.first.noCommitment.title.nickname" = "%@, it's wind-down time";
+"notification.night.first.noCommitment.body.nickname" = "If you like, you can still leave a gentle line for tonight.";
+"notification.night.first.noCommitment.title" = "It's wind-down time";
+"notification.night.first.noCommitment.body" = "If you like, you can still leave a gentle line for tonight.";
+"notification.night.second.title.nickname" = "%@, you've done enough today";
+"notification.night.second.body.nickname" = "That line \"%@\" is waiting—rest will feel better.";
+"notification.night.second.title" = "You've done enough today";
+"notification.night.second.body" = "That line \"%@\" is waiting—rest will feel better.";
+"notification.night.second.noCommitment.title.nickname" = "%@, today was a lot";
+"notification.night.second.noCommitment.body.nickname" = "If you want, leave a line for tonight and take care of yourself.";
+"notification.night.second.noCommitment.title" = "Today was a lot";
+"notification.night.second.noCommitment.body" = "If you want, leave a line for tonight and take care of yourself.";
+
+"commit.title" = "Write a line for your night self";
+"commit.title.full" = "If you turn in early tonight, how will you feel?";
+"commit.placeholder" = "Write what your daytime self wants to say";
+"commit.placeholder.short" = "Tonight I'll be kind to myself…";
 "commit.nav" = "Commitment";
-"commit.suggestion1" = "Feel more refreshed tomorrow";
-"commit.suggestion2" = "Wake up early for a run";
-"commit.suggestion3" = "No need to rely on coffee";
+"commit.suggestion1" = "Wake up feeling better tomorrow";
+"commit.suggestion2" = "Have energy for what I love";
+"commit.suggestion3" = "My body will thank me";
 
-"common.confirm" = "Confirm";
-"common.cancel" = "Cancel";
+"common.confirm" = "Okay";
+"common.cancel" = "Never mind";
 
-"night.title" = "Remember your promise";
-"night.subtitle.placeholder" = "Your earlier promise";
-"night.button" = "Light the final light";
+"night.title" = "Daytime you is reminding you";
+"night.subtitle.placeholder" = "This is what you left for yourself";
+"night.button" = "I'm ready to sleep";
 
 "dev.title" = "Developer Tools";
 "dev.trigger.day" = "Trigger day reminder";
@@ -34,18 +63,23 @@
 "settings.language.system" = "System";
 "settings.dev.section" = "Developer";
 "settings.dev.goto.night" = "Open night guard page";
+"settings.notification.showCommitment" = "Show my line in notifications";
+"settings.notification.showCommitment.desc" = "Your line may appear on the lock screen.";
+"settings.profile.section" = "Profile";
+"settings.profile.nickname" = "Nickname";
+"settings.profile.nickname.placeholder" = "Add a nickname for gentler reminders";
 
 "lightchain.title" = "Light Chain";
-"lightchain.subtitle" = "Keep all your lights shining every night.";
+"lightchain.subtitle" = "Let your light get a little brighter each day.";
 "lightchain.calendar" = "Calendar";
-"lightchain.streak.title" = "Streak";
-"lightchain.streak.subtitle" = "Current: %d days · Longest: %d days";
+"lightchain.streak.title" = "Your streak";
+"lightchain.streak.subtitle" = "%d days current · %d best";
 "lightchain.streak.current" = "Current";
 "lightchain.streak.longest" = "Longest";
 "lightchain.detail.title" = "Details";
-"lightchain.detail.empty" = "No commitment written";
-"lightchain.detail.sleep" = "Sleep confirmed at %@";
-"lightchain.detail.reject" = "Times continued: %d";
+"lightchain.detail.empty" = "Today's light isn't on yet";
+"lightchain.detail.sleep" = "You fell asleep at %@";
+"lightchain.detail.reject" = "Hesitated %d times";
 
 /* LightChain primary card */
 "lightchain.card.title" = "Light Chain";

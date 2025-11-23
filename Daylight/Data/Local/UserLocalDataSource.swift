@@ -30,7 +30,8 @@ actor UserLocalDataSource {
             phone: nil,
             appleId: nil,
             locale: Locale.current.identifier,
-            timezone: TimeZone.current.identifier
+            timezone: TimeZone.current.identifier,
+            nickname: nil
         )
 
         try save(user: user)

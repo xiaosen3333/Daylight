@@ -21,6 +21,7 @@ actor SettingsLocalDataSource {
             nightReminderEnd: "00:30",
             nightReminderInterval: 30,
             nightReminderEnabled: true,
+            showCommitmentInNotification: true,
             version: Settings.schemaVersion
         )
         try save(defaults)

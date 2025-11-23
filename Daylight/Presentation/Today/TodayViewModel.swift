@@ -20,6 +20,7 @@ final class TodayViewModel: ObservableObject {
     @Published var commitmentText: String = ""
     @Published var locale: Locale = .autoupdatingCurrent
     @Published var monthRecords: [DayRecord] = []
+    @Published var nickname: String = ""
 
     private let userRepository: UserRepository
     private let loadTodayState: LoadTodayStateUseCase
@@ -73,6 +74,7 @@ final class TodayViewModel: ObservableObject {
         do {
             let user = try await userRepository.currentUser()
             self.user = user
+            nickname = user.nickname ?? ""
             let today = try await loadTodayState.execute(userId: user.id)
             state.record = today.record
             state.settings = today.settings
@@ -173,23 +175,27 @@ final class TodayViewModel: ObservableObject {
         } else {
             nightNeeded = false
         }
-        await notificationScheduler.reschedule(settings: settings, nightReminderNeeded: nightNeeded)
+        let context = makeNotificationContext(settings: settings)
+        await notificationScheduler.reschedule(settings: settings, nightReminderNeeded: nightNeeded, context: context)
     }
 
     // MARK: - Dev helpers
     func triggerDayReminderNow() async {
-        await notificationScheduler.triggerDayReminderNow()
+        let context = state.settings.map { makeNotificationContext(settings: $0) } ?? .empty
+        await notificationScheduler.triggerDayReminderNow(context: context)
     }
 
     func triggerNightReminderNow() async {
-        await notificationScheduler.triggerNightReminderNow()
+        let context = state.settings.map { makeNotificationContext(settings: $0) } ?? .empty
+        await notificationScheduler.triggerNightReminderNow(context: context)
     }
 
     func saveSettings(dayReminder: Date,
                       nightStart: Date,
                       nightEnd: Date,
                       interval: Int,
-                      nightEnabled: Bool) async {
+                      nightEnabled: Bool,
+                      showCommitmentInNotification: Bool) async {
         guard var settings = state.settings else { return }
         state.errorMessage = nil
         settings.dayReminderTime = dateHelper.timeString(from: dayReminder)
@@ -197,6 +203,7 @@ final class TodayViewModel: ObservableObject {
         settings.nightReminderEnd = dateHelper.timeString(from: nightEnd)
         settings.nightReminderInterval = interval
         settings.nightReminderEnabled = nightEnabled
+        settings.showCommitmentInNotification = showCommitmentInNotification
         settings.version += 1
         do {
             try await updateSettingsUseCase.execute(settings)
@@ -214,6 +221,39 @@ final class TodayViewModel: ObservableObject {
     func setLanguage(_ code: String?) {
         LanguageManager.shared.setLanguage(code)
         locale = LanguageManager.shared.currentLocale
+    }
+
+    func updateNickname(_ newName: String) async {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let updated = try await userRepository.updateNickname(trimmed)
+            user = updated
+            nickname = updated.nickname ?? ""
+            await scheduleNotifications()
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func makeNotificationContext(settings: Settings) -> NotificationContext {
+        let nickname = user?.nickname
+        let hasCommitment = state.record?.dayLightStatus == .on
+        let preview = commitmentPreview(for: state.record?.commitmentText)
+        return NotificationContext(
+            nickname: nickname,
+            hasCommitmentToday: hasCommitment,
+            commitmentPreview: preview,
+            showCommitmentInNotification: settings.showCommitmentInNotification
+        )
+    }
+
+    private func commitmentPreview(for text: String?) -> String? {
+        guard let raw = text?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
+        }
+        if raw.count <= 20 { return raw }
+        let prefix = raw.prefix(18)
+        return "\(prefix)…"
     }
 
     func loadMonth(_ month: Date) async {

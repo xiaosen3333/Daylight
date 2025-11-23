@@ -15,7 +15,8 @@ actor RemoteAPIStub {
             phone: nil,
             appleId: nil,
             locale: Locale.current.identifier,
-            timezone: TimeZone.current.identifier
+            timezone: TimeZone.current.identifier,
+            nickname: nil
         )
         return user
     }

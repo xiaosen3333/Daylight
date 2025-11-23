@@ -1,23 +1,53 @@
 /* 简体中文本地化 */
-"home.title" = "不熬夜";
-"home.subtitle" = "为今晚立下一个承诺";
-"home.button" = "开始";
+"home.title" = "别熬夜了，早点睡";
+"home.subtitle" = "写下白天的你想对今晚说的话";
+"home.button" = "留一句给今晚";
 
-"commit.title" = "写下今晚不熬夜的承诺";
-"commit.title.full" = "今晚不熬夜，你会得到什么？";
-"commit.placeholder" = "今晚不熬夜，你会得到什么？";
-"commit.placeholder.short" = "今晚我要…";
+"notification.day.title" = "为今晚的你留一句话";
+"notification.day.body" = "如果今晚不熬夜，你会得到什么？";
+"notification.night.title" = "夜间守护";
+"notification.night.body" = "该准备睡觉了，让今晚的灯也亮起来。";
+"notification.day.noCommitment.title.nickname" = "%@，给今晚的你一句话";
+"notification.day.noCommitment.body.nickname" = "白天的你现在最清醒，愿意写一句给今晚的自己吗？";
+"notification.day.noCommitment.title" = "给今晚的你一句话";
+"notification.day.noCommitment.body" = "白天的你现在最清醒，愿意写一句给今晚的自己吗？";
+"notification.day.withCommitment.title.nickname" = "%@，你已经替今晚的自己想好了";
+"notification.day.withCommitment.body.nickname" = "今天的承诺已经点亮了第一盏光。";
+"notification.day.withCommitment.title" = "你今天已经写下了承诺";
+"notification.day.withCommitment.body" = "白天的那句话，会陪你度过今晚。";
+"notification.night.first.title.nickname" = "%@，白天的你在提醒你";
+"notification.night.first.body.nickname" = "你写过：“%@”";
+"notification.night.first.title" = "白天的你在提醒你";
+"notification.night.first.body" = "你写过：“%@”";
+"notification.night.first.noCommitment.title.nickname" = "%@，晚安时间到了";
+"notification.night.first.noCommitment.body.nickname" = "如果愿意，现在也可以为今晚写一句温柔的话。";
+"notification.night.first.noCommitment.title" = "晚安时间到了";
+"notification.night.first.noCommitment.body" = "如果愿意，现在也可以为今晚写一句温柔的话。";
+"notification.night.second.title.nickname" = "%@，你今天已经很努力了";
+"notification.night.second.body.nickname" = "那句“%@”还在等你，早点休息会舒服很多。";
+"notification.night.second.title" = "你今天已经很努力了";
+"notification.night.second.body" = "那句“%@”还在等你，早点休息会舒服很多。";
+"notification.night.second.noCommitment.title.nickname" = "%@，今天也辛苦了";
+"notification.night.second.noCommitment.body.nickname" = "如果想要，现在也能为夜晚留一句话，好好照顾自己。";
+"notification.night.second.noCommitment.title" = "今天也辛苦了";
+"notification.night.second.noCommitment.body" = "现在也可以为夜晚留一句话，好好照顾自己。";
+
+"commit.title" = "写一句话给今晚的你";
+"commit.title.full" = "如果今晚早点休息，你会更舒服吗？";
+"commit.placeholder" = "写下白天的你想说的话";
+"commit.placeholder.short" = "今晚我要对自己好一点…";
 "commit.nav" = "承诺";
-"commit.suggestion1" = "明天会更精神";
-"commit.suggestion2" = "早起去跑步";
-"commit.suggestion3" = "不需要靠咖啡硬撑";
+"commit.suggestion1" = "明天醒来会更舒服一点";
+"commit.suggestion2" = "有力气做喜欢的事";
+"commit.suggestion3" = "身体会感谢你";
 
-"common.confirm" = "确认";
-"common.cancel" = "取消";
+"common.confirm" = "好的";
+"common.cancel" = "算了";
 
-"night.title" = "记住你的承诺";
-"night.subtitle.placeholder" = "你之前写下的承诺";
-"night.button" = "点亮最后一盏灯";
+"night.title" = "白天的你在提醒你";
+"night.subtitle.placeholder" = "这是你留给自己的话";
+"night.button" = "我准备睡觉了";
+
 
 "dev.title" = "开发者工具";
 "dev.trigger.day" = "触发白昼提醒";
@@ -34,23 +64,28 @@
 "settings.language.system" = "跟随系统";
 "settings.dev.section" = "开发调试";
 "settings.dev.goto.night" = "跳转到夜间守护页";
+"settings.notification.showCommitment" = "在通知中显示我写下的句子";
+"settings.notification.showCommitment.desc" = "可能会在锁屏看到你写的话。";
+"settings.profile.section" = "个人";
+"settings.profile.nickname" = "昵称";
+"settings.profile.nickname.placeholder" = "填个昵称，提醒时会更温柔";
 
 "lightchain.title" = "灯链";
-"lightchain.subtitle" = "让你的两盏灯每天都亮起来。";
+"lightchain.subtitle" = "让你的光，一天比一天亮一点。";
 "lightchain.calendar" = "日历";
-"lightchain.streak.title" = "连续天数";
-"lightchain.streak.subtitle" = "当前：%d 天 · 最长：%d 天";
+"lightchain.streak.title" = "你的坚持天数";
+"lightchain.streak.subtitle" = "%d 天坚持 · %d 天最佳";
 "lightchain.streak.current" = "当前";
 "lightchain.streak.longest" = "最长";
 "lightchain.detail.title" = "详情";
-"lightchain.detail.empty" = "今天还没有写承诺";
-"lightchain.detail.sleep" = "睡觉时间：%@";
-"lightchain.detail.reject" = "继续玩手机次数：%d";
+"lightchain.detail.empty" = "今天的光还没被点亮";
+"lightchain.detail.sleep" = "你是在 %@ 入睡的";
+"lightchain.detail.reject" = "曾犹豫了 %d 次";
 
 /* LightChain primary card */
 "lightchain.card.title" = "灯链";
 "lightchain.card.subtitle" = "让你的光在每个夜晚都亮起。";
-"lightchain.card.current" = "当前连续天数";
-"lightchain.card.longest" = "最长连续天数";
+"lightchain.card.current" = "当前连续";
+"lightchain.card.longest" = "历史最佳";
 "lightchain.card.days" = "天";
 "lightchain.card.calendar.title" = "连续天数日历";

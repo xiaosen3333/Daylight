@@ -3,6 +3,7 @@ import Foundation
 protocol UserRepository {
     func currentUser() async throws -> User
     func updateLastActive(date: Date) async
+    func updateNickname(_ nickname: String) async throws -> User
 }
 
 protocol DayRecordRepository {

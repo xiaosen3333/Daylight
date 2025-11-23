@@ -26,4 +26,14 @@ final class UserRepositoryImpl: UserRepository {
             // no-op for MVP
         }
     }
+
+    func updateNickname(_ nickname: String) async throws -> User {
+        var user = try await local.loadOrCreateUser()
+        user.nickname = nickname
+        try await local.save(user: user)
+        if let remote = remote {
+            _ = try? await remote.registerAnonymous(deviceId: user.deviceId)
+        }
+        return user
+    }
 }
