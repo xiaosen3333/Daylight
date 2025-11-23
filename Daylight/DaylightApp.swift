@@ -4,11 +4,18 @@ import SwiftUI
 struct DaylightApp: App {
     @StateObject private var container = AppContainer()
 
+    init() {
+        ForegroundNotificationDelegate.shared.activate()
+        LanguageManager.shared.applySavedLanguage()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
                 if let viewModel = container.todayViewModel {
                     TodayView(viewModel: viewModel)
+                        .environment(\.locale, viewModel.locale)
+                        .id(viewModel.locale.identifier)
                 } else if let error = container.errorMessage {
                     VStack(spacing: 16) {
                         Text("启动失败")

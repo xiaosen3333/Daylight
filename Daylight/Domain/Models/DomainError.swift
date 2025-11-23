@@ -4,6 +4,7 @@ enum DomainError: Error, LocalizedError {
     case invalidInput(String)
     case storageFailure(String)
     case syncFailure(String)
+    case invalidState(String)
     case notFound
 
     var errorDescription: String? {
@@ -13,6 +14,8 @@ enum DomainError: Error, LocalizedError {
         case .storageFailure(let message):
             return message
         case .syncFailure(let message):
+            return message
+        case .invalidState(let message):
             return message
         case .notFound:
             return "未找到对应记录"

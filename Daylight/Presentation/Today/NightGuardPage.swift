@@ -28,7 +28,9 @@ struct NightGuardPage: View {
                     Button {
                         Task {
                             await viewModel.confirmSleepNow()
-                            dismiss()
+                            if viewModel.state.errorMessage == nil {
+                                dismiss()
+                            }
                         }
                     } label: {
                         HStack {

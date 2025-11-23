@@ -18,3 +18,19 @@
 "night.title" = "记住你的承诺";
 "night.subtitle.placeholder" = "你之前写下的承诺";
 "night.button" = "点亮最后一盏灯";
+
+"dev.title" = "开发者工具";
+"dev.trigger.day" = "触发白昼提醒";
+"dev.trigger.night" = "触发夜间提醒";
+
+"settings.title" = "设置";
+"settings.reminder.section" = "提醒设置";
+"settings.day.time" = "白昼提醒时间";
+"settings.night.enable" = "开启夜间提醒";
+"settings.night.start" = "夜间开始";
+"settings.night.end" = "夜间结束";
+"settings.night.interval" = "夜间提醒间隔";
+"settings.language.section" = "语言";
+"settings.language.system" = "跟随系统";
+"settings.dev.section" = "开发调试";
+"settings.dev.goto.night" = "跳转到夜间守护页";

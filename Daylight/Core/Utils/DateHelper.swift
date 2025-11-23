@@ -93,4 +93,19 @@ struct DaylightDateHelper {
         }
         return hour * 60 + minute
     }
+
+    func timeString(from date: Date) -> String {
+        shortTimeFormatter.string(from: date)
+    }
+
+    func date(from timeString: String, reference: Date = Date()) -> Date {
+        let minutesTotal = minutes(for: timeString)
+        var calendar = calendar
+        calendar.timeZone = timeZone
+        var components = calendar.dateComponents(in: timeZone, from: reference)
+        components.hour = minutesTotal / 60
+        components.minute = minutesTotal % 60
+        components.second = 0
+        return calendar.date(from: components) ?? reference
+    }
 }

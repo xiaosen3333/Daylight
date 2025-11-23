@@ -18,3 +18,19 @@
 "night.title" = "Remember your promise";
 "night.subtitle.placeholder" = "Your earlier promise";
 "night.button" = "Light the final light";
+
+"dev.title" = "Developer Tools";
+"dev.trigger.day" = "Trigger day reminder";
+"dev.trigger.night" = "Trigger night reminder";
+
+"settings.title" = "Settings";
+"settings.reminder.section" = "Reminders";
+"settings.day.time" = "Day reminder";
+"settings.night.enable" = "Night reminder";
+"settings.night.start" = "Night start";
+"settings.night.end" = "Night end";
+"settings.night.interval" = "Night reminder interval";
+"settings.language.section" = "Language";
+"settings.language.system" = "System";
+"settings.dev.section" = "Developer";
+"settings.dev.goto.night" = "Open night guard page";

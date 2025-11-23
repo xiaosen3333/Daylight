@@ -11,6 +11,7 @@ final class AppContainer: ObservableObject {
         Task {
             do {
                 let dateHelper = DaylightDateHelper()
+                ForegroundNotificationDelegate.shared.activate()
 
                 let userLocal = UserLocalDataSource()
                 let dayLocal = DayRecordLocalDataSource()
@@ -34,6 +35,7 @@ final class AppContainer: ObservableObject {
                 let rejectNight = RejectNightUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let loadLightChain = LoadLightChainUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let streak = GetStreakUseCase(dayRecordRepository: dayRecordRepository)
+                let updateSettings = UpdateSettingsUseCase(settingsRepository: settingsRepository)
                 let scheduler = NotificationScheduler()
 
                 let viewModel = TodayViewModel(
@@ -44,6 +46,7 @@ final class AppContainer: ObservableObject {
                     rejectNight: rejectNight,
                     loadLightChain: loadLightChain,
                     getStreak: streak,
+                    updateSettings: updateSettings,
                     dateHelper: dateHelper,
                     notificationScheduler: scheduler
                 )

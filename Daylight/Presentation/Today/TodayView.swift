@@ -5,6 +5,7 @@ struct TodayView: View {
     @StateObject var viewModel: TodayViewModel
     @State private var showDayPage = false
     @State private var showNightPage = false
+    @State private var showSettingsPage = false
 
     var body: some View {
         NavigationStack {
@@ -14,16 +15,17 @@ struct TodayView: View {
                     HStack {
                         Spacer()
                         Button {
-                            showNightPage = true
+                            showSettingsPage = true
                         } label: {
-                            Image(systemName: "moon.stars.fill")
+                            Image(systemName: "gearshape.fill")
                                 .foregroundColor(.white.opacity(0.8))
                                 .padding(10)
-                                .background(Color.white.opacity(0.15))
+                                .background(Color.white.opacity(0.12))
                                 .clipShape(Circle())
                         }
+                        .padding(.trailing, 10)
                     }
-                    .padding(.top, 20)
+                    .padding(.top, 44)
                     .padding(.trailing, 20)
 
                     VStack(spacing: 28) {
@@ -53,13 +55,43 @@ struct TodayView: View {
             }
             .ignoresSafeArea()
             .onAppear { viewModel.onAppear() }
+            .environment(\.locale, viewModel.locale)
             .navigationDestination(isPresented: $showDayPage) {
                 DayCommitmentPage(viewModel: viewModel)
             }
             .navigationDestination(isPresented: $showNightPage) {
                 NightGuardPage(viewModel: viewModel)
             }
+            .navigationDestination(isPresented: $showSettingsPage) {
+                SettingsPage(viewModel: viewModel)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .daylightNavigate)) { notification in
+                guard let deeplink = notification.userInfo?["deeplink"] as? String else { return }
+                if deeplink == "day" {
+                    showDayPage = true
+                } else if deeplink == "night" {
+                    showNightPage = true
+                }
+            }
+            .alert("提示", isPresented: errorAlertBinding) {
+                Button(NSLocalizedString("common.confirm", comment: ""), role: .cancel) {
+                    viewModel.state.errorMessage = nil
+                }
+            } message: {
+                Text(viewModel.state.errorMessage ?? "")
+            }
         }
+    }
+
+    private var errorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.state.errorMessage != nil },
+            set: { isShowing in
+                if !isShowing {
+                    viewModel.state.errorMessage = nil
+                }
+            }
+        )
     }
 
     private var background: some View {
@@ -150,9 +182,11 @@ struct DayCommitmentPage: View {
 
                 Button {
                     Task {
-                        viewModel.commitmentText = text.isEmpty ? NSLocalizedString("commit.placeholder.short", comment: "") : text
+                        viewModel.commitmentText = text
                         await viewModel.submitCommitment()
-                        dismiss()
+                        if viewModel.state.errorMessage == nil {
+                            dismiss()
+                        }
                     }
                 } label: {
                     Text(NSLocalizedString("common.confirm", comment: ""))

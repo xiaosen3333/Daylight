@@ -83,6 +83,13 @@ final class ConfirmSleepUseCase {
         guard var record = try await dayRecordRepository.record(for: dateString) else {
             throw DomainError.notFound
         }
+
+        guard record.dayLightStatus == .on else {
+            throw DomainError.invalidState("还未点亮白昼之灯")
+        }
+        guard record.nightLightStatus == .off else {
+            throw DomainError.invalidState("夜间守护已完成")
+        }
         let now = Date()
         record.nightLightStatus = .on
         record.sleepConfirmedAt = now
@@ -106,6 +113,12 @@ final class RejectNightUseCase {
         let dateString = dateHelper.localDayString(nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
         guard var record = try await dayRecordRepository.record(for: dateString) else {
             throw DomainError.notFound
+        }
+        guard record.dayLightStatus == .on else {
+            throw DomainError.invalidState("还未点亮白昼之灯")
+        }
+        guard record.nightLightStatus == .off else {
+            throw DomainError.invalidState("夜间守护已完成")
         }
         record.nightRejectCount += 1
         record.updatedAt = Date()
@@ -193,6 +206,18 @@ final class GetStreakUseCase {
             }
         }
         return longest
+    }
+}
+
+final class UpdateSettingsUseCase {
+    private let settingsRepository: SettingsRepository
+
+    init(settingsRepository: SettingsRepository) {
+        self.settingsRepository = settingsRepository
+    }
+
+    func execute(_ settings: Settings) async throws {
+        try await settingsRepository.updateSettings(settings)
     }
 }
 
