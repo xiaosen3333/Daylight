@@ -1,0 +1,11 @@
+/* 简体中文本地化 */
+"home.title" = "不熬夜";
+"home.subtitle" = "为今晚立下一个承诺";
+"home.button" = "开始";
+
+"commit.title" = "写下今晚不熬夜的承诺";
+"commit.placeholder" = "今晚不熬夜，你会得到什么？";
+"commit.nav" = "承诺";
+
+"common.confirm" = "确认";
+"common.cancel" = "取消";

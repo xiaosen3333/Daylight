@@ -1,0 +1,11 @@
+/* English localization */
+"home.title" = "No late nights";
+"home.subtitle" = "Make a promise for tonight";
+"home.button" = "Get started";
+
+"commit.title" = "Make a commitment for tonight";
+"commit.placeholder" = "What will you gain by not staying up late?";
+"commit.nav" = "Commitment";
+
+"common.confirm" = "Confirm";
+"common.cancel" = "Cancel";
