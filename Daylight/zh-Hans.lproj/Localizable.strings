@@ -4,8 +4,17 @@
 "home.button" = "开始";
 
 "commit.title" = "写下今晚不熬夜的承诺";
+"commit.title.full" = "今晚不熬夜，你会得到什么？";
 "commit.placeholder" = "今晚不熬夜，你会得到什么？";
+"commit.placeholder.short" = "今晚我要…";
 "commit.nav" = "承诺";
+"commit.suggestion1" = "明天会更精神";
+"commit.suggestion2" = "早起去跑步";
+"commit.suggestion3" = "不需要靠咖啡硬撑";
 
 "common.confirm" = "确认";
 "common.cancel" = "取消";
+
+"night.title" = "记住你的承诺";
+"night.subtitle.placeholder" = "你之前写下的承诺";
+"night.button" = "点亮最后一盏灯";

@@ -4,8 +4,17 @@
 "home.button" = "Get started";
 
 "commit.title" = "Make a commitment for tonight";
+"commit.title.full" = "What will you gain if you don't stay up late tonight?";
 "commit.placeholder" = "What will you gain by not staying up late?";
+"commit.placeholder.short" = "Tonight I will…";
 "commit.nav" = "Commitment";
+"commit.suggestion1" = "Feel more refreshed tomorrow";
+"commit.suggestion2" = "Wake up early for a run";
+"commit.suggestion3" = "No need to rely on coffee";
 
 "common.confirm" = "Confirm";
 "common.cancel" = "Cancel";
+
+"night.title" = "Remember your promise";
+"night.subtitle.placeholder" = "Your earlier promise";
+"night.button" = "Light the final light";
