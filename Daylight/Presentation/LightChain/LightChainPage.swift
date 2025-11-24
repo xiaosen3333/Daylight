@@ -22,6 +22,7 @@ struct LightChainPage: View {
                         records: viewModel.monthRecords,
                         month: currentMonth,
                         locale: viewModel.locale,
+                        initialSelection: selectedRecord?.date ?? viewModel.dateHelper.dayFormatter.string(from: Date()),
                         onSelect: { record in
                             selectedRecord = record
                         },
@@ -30,6 +31,14 @@ struct LightChainPage: View {
                             Task { await loadMonthData(month: newMonth) }
                         }
                     )
+                    if let record = selectedRecord {
+                        DayRecordStatusCard(
+                            record: record,
+                            locale: viewModel.locale,
+                            timeZone: viewModel.dateHelper.timeZone,
+                            todayKey: viewModel.dateHelper.dayFormatter.string(from: Date())
+                        )
+                    }
                     mainPanel
                 }
                 .padding(.horizontal, 16)
@@ -40,7 +49,6 @@ struct LightChainPage: View {
             Task {
                 await loadMonthData()
             }
-            print("LightChainPage locale: \(viewModel.locale.identifier)")
         }
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -190,7 +198,8 @@ struct LightChainPage: View {
     private func dayCell(_ day: DayCell) -> some View {
         let status = dayStatus(for: day.record)
         return Button {
-            selectedRecord = day.record
+            let record = overlayRecord(from: day)
+            selectedRecord = record
         } label: {
             VStack {
                 Text(day.dayString)
@@ -208,6 +217,20 @@ struct LightChainPage: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+    }
+
+    private func overlayRecord(from day: DayCell) -> DayRecord {
+        return DayRecord(
+            userId: viewModel.currentUserId ?? "",
+            date: viewModel.dateHelper.dayFormatter.string(from: day.date),
+            commitmentText: day.record.commitmentText,
+            dayLightStatus: day.record.dayLightStatus,
+            nightLightStatus: day.record.nightLightStatus,
+            sleepConfirmedAt: day.record.sleepConfirmedAt,
+            nightRejectCount: day.record.nightRejectCount,
+            updatedAt: day.record.updatedAt,
+            version: day.record.version
+        )
     }
 
     private var streakCard: some View {
@@ -321,7 +344,7 @@ struct LightChainPage: View {
         if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
-            selectedRecord = viewModel.monthRecords.first
+            selectedRecord = defaultRecord(for: viewModel.currentUserId ?? "", date: todayKey)
         }
         isLoadingMonth = false
     }
@@ -384,15 +407,23 @@ struct LightChainPage: View {
     }
 
     private func applyMock(_ mock: MockSyncData) {
-        let records = MockSyncDataLoader.shared.toDayRecords(mock, timezone: viewModel.dateHelper.timeZone)
-        viewModel.monthRecords = records
+        var records = MockSyncDataLoader.shared.toDayRecords(mock, timezone: viewModel.dateHelper.timeZone)
         viewModel.state.streak = StreakResult(current: mock.stats.currentStreak, longest: mock.stats.longestStreak)
 
         let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
+        if let todayRecord = viewModel.state.record, todayRecord.date == todayKey {
+            if let idx = records.firstIndex(where: { $0.date == todayKey }) {
+                records[idx] = todayRecord
+            } else {
+                records.append(todayRecord)
+            }
+        }
+        viewModel.monthRecords = records
+
         if let today = records.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
-            selectedRecord = records.first
+            selectedRecord = defaultRecord(for: viewModel.currentUserId ?? "", date: todayKey)
         }
     }
 }
@@ -440,16 +471,16 @@ private enum DayVisualStatus {
         }
     }
 
-    var textColor: Color {
-        switch self {
-        case .complete:
-            return Color(red: 51/255, green: 79/255, blue: 80/255)
-        case .partial:
-            return Color.white.opacity(0.95)
-        case .off:
-            return Color.white.opacity(0.6)
+        var textColor: Color {
+            switch self {
+            case .complete:
+                return Color(red: 51/255, green: 79/255, blue: 80/255)
+            case .partial:
+                return Color.white.opacity(0.95)
+            case .off:
+                return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.65)
+            }
         }
-    }
 
     var glow: Color {
         switch self {

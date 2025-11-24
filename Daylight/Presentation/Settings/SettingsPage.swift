@@ -33,22 +33,8 @@ struct SettingsPage: View {
                 .padding(.bottom, 40)
             }
         }
-        .navigationBarBackButtonHidden(true)
         .navigationTitle(NSLocalizedString("settings.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.white.opacity(0.9))
-                        .padding(10)
-                        .background(Color.white.opacity(0.12))
-                        .clipShape(Circle())
-                }
-            }
-        }
         .onAppear { syncWithSettings() }
         .onChange(of: dayReminder) { _, newValue in persistSettings(day: newValue, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
         .onChange(of: nightStart) { _, newValue in persistSettings(day: dayReminder, nightStart: newValue, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }

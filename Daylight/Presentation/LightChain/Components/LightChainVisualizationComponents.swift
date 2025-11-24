@@ -6,20 +6,28 @@ struct LightChainVisualizationGallery: View {
     let selectedRecord: DayRecord?
     let streak: StreakResult?
     let currentMonth: Date
+    let userId: String
     let locale: Locale
+    let timeZone: TimeZone
+    let todayKey: String
     let onMonthChange: (Date) -> Void
     let onSelect: (DayRecord?) -> Void
 
     var body: some View {
+        let recordToShow = selectedRecord
+        ?? records.first(where: { $0.date == todayKey })
+        ?? defaultRecord(for: userId, date: todayKey)
         LazyVStack(spacing: 14) {
             LightChainPrimaryCard(records: records, streak: streak)
             LightChainStreakCalendarCard(
                 records: records,
                 month: currentMonth,
                 locale: locale,
+                initialSelection: selectedRecord?.date ?? todayKey,
                 onSelect: onSelect,
                 onMonthChange: onMonthChange
             )
+            DayRecordStatusCard(record: recordToShow, locale: locale, timeZone: timeZone, todayKey: todayKey)
         }
     }
 }
@@ -111,6 +119,7 @@ struct LightChainPrimaryCard: View {
 struct LightChainStreakCalendarCard: View {
     let records: [DayRecord]
     let locale: Locale
+    let initialSelection: String?
     let onSelect: (DayRecord?) -> Void
     let onMonthChange: (Date) -> Void
 
@@ -118,13 +127,15 @@ struct LightChainStreakCalendarCard: View {
     @State private var selectedId: String?
     private let externalMonth: Date
 
-    init(records: [DayRecord], month: Date, locale: Locale, onSelect: @escaping (DayRecord?) -> Void, onMonthChange: @escaping (Date) -> Void) {
+    init(records: [DayRecord], month: Date, locale: Locale, initialSelection: String? = nil, onSelect: @escaping (DayRecord?) -> Void, onMonthChange: @escaping (Date) -> Void) {
         self.records = records
         self.locale = locale
+        self.initialSelection = initialSelection
         self.onSelect = onSelect
         self.onMonthChange = onMonthChange
         self.externalMonth = month
         _month = State(initialValue: month)
+        _selectedId = State(initialValue: initialSelection)
     }
 
     var body: some View {
@@ -224,12 +235,13 @@ struct LightChainStreakCalendarCard: View {
         let style = dayStyle(for: cell.record)
         let isSelected = selectedId == cell.id
         return Button {
+            let record = cell.record ?? placeholderRecord(for: cell)
             selectedId = cell.id
-            onSelect(cell.record)
+            onSelect(record)
         } label: {
             Text(cell.dayString)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(isSelected ? cardText : style.text)
+                .foregroundColor(style.text)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(
@@ -248,8 +260,10 @@ struct LightChainStreakCalendarCard: View {
     }
 
     private func dayStyle(for record: DayRecord?) -> (background: Color, text: Color, glow: Color, glowRadius: CGFloat) {
+        let offBackground = Color.white.opacity(0.15)
+        let offText = cardText.opacity(0.65)
         guard let record = record else {
-            return (Color.white.opacity(0.08), cardText.opacity(0.75), Color.clear, 0)
+            return (offBackground, offText, Color.clear, 0)
         }
         if record.dayLightStatus == .on && record.nightLightStatus == .on {
             return (cardText, Color(red: 50/255, green: 75/255, blue: 75/255), cardText.opacity(0.45), 10)
@@ -257,7 +271,21 @@ struct LightChainStreakCalendarCard: View {
         if record.dayLightStatus == .on {
             return (cardText.opacity(0.35), Color.white.opacity(0.92), cardText.opacity(0.2), 6)
         }
-        return (Color.white.opacity(0.15), Color.white.opacity(0.7), Color.clear, 0)
+        return (offBackground, offText, Color.clear, 0)
+    }
+
+    private func placeholderRecord(for cell: DayCell) -> DayRecord {
+        DayRecord(
+            userId: "",
+            date: cell.id,
+            commitmentText: nil,
+            dayLightStatus: .off,
+            nightLightStatus: .off,
+            sleepConfirmedAt: nil,
+            nightRejectCount: 0,
+            updatedAt: Date(),
+            version: 1
+        )
     }
 
     private func monthGrid() -> [[DayCell?]] {
@@ -365,5 +393,178 @@ struct LightChainStreakCalendarCard: View {
             formatter.locale = Locale(identifier: "en_US_POSIX")
             self.id = formatter.string(from: date)
         }
+    }
+}
+
+/// 日历下方展示某天灯状态的卡片
+struct DayRecordStatusCard: View {
+    let record: DayRecord
+    let locale: Locale
+    let timeZone: TimeZone
+    let todayKey: String
+
+    private enum Status {
+        case off, dayOnly, both
+    }
+
+    private var isFuture: Bool {
+        guard let date = dateFormatter().date(from: record.date),
+              let today = dateFormatter().date(from: todayKey) else { return false }
+        return date > today
+    }
+
+    private var isToday: Bool {
+        record.date == todayKey
+    }
+
+    private var isTodayDayOnly: Bool {
+        isToday && record.dayLightStatus == .on && record.nightLightStatus == .off
+    }
+
+    private var isTodayOff: Bool {
+        isToday && record.dayLightStatus == .off
+    }
+
+    private var status: Status {
+        if record.dayLightStatus == .on && record.nightLightStatus == .on {
+            return .both
+        }
+        if record.dayLightStatus == .on {
+            return .dayOnly
+        }
+        return .off
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(formattedDate(record.date))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+            Text(title(for: status))
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(Color(red: 255/255, green: 236/255, blue: 173/255))
+            Text(description(for: status))
+                .font(.system(size: 15))
+                .foregroundColor(.white.opacity(0.85))
+
+            if !isFuture {
+                if status != .off {
+                    Text(commitmentLine())
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(3)
+                } else {
+                    Text(NSLocalizedString("record.card.commitment.empty", comment: "No commitment"))
+                        .font(.system(size: 15))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+
+                if let sleep = sleepLine() {
+                    Text(sleep)
+                        .font(.system(size: 15))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+
+                if let reject = rejectLine() {
+                    Text(reject)
+                        .font(.system(size: 15))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: 360, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(LinearGradient(colors: [
+                    Color(red: 34/255, green: 61/255, blue: 68/255),
+                    Color(red: 22/255, green: 44/255, blue: 54/255)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .shadow(color: Color.black.opacity(0.25), radius: 18, x: 0, y: 10)
+        )
+        .padding(.horizontal, 24)
+        .padding(.vertical, 30)
+    }
+
+    private func title(for status: Status) -> String {
+        if isFuture {
+            return NSLocalizedString("record.card.future.title", comment: "")
+        }
+        if isTodayOff {
+            return NSLocalizedString("record.card.today.off.title", comment: "")
+        }
+        if isTodayDayOnly {
+            return NSLocalizedString("record.card.today.day.title", comment: "")
+        }
+        switch status {
+        case .off:
+            return NSLocalizedString("record.card.title.off", comment: "")
+        case .dayOnly:
+            return NSLocalizedString("record.card.title.day", comment: "")
+        case .both:
+            return NSLocalizedString("record.card.title.both", comment: "")
+        }
+    }
+
+    private func description(for status: Status) -> String {
+        if isFuture {
+            return NSLocalizedString("record.card.future.desc", comment: "")
+        }
+        if isTodayOff {
+            return NSLocalizedString("record.card.today.off.desc", comment: "")
+        }
+        if isTodayDayOnly {
+            return NSLocalizedString("record.card.today.day.desc", comment: "")
+        }
+        switch status {
+        case .off:
+            return NSLocalizedString("record.card.desc.off", comment: "")
+        case .dayOnly:
+            return NSLocalizedString("record.card.desc.day", comment: "")
+        case .both:
+            return NSLocalizedString("record.card.desc.both", comment: "")
+        }
+    }
+
+    private func commitmentLine() -> String {
+        let trimmed = record.commitmentText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if trimmed.isEmpty {
+            return NSLocalizedString("record.card.commitment.empty", comment: "")
+        }
+        return String(format: NSLocalizedString("record.card.commitment", comment: ""), trimmed)
+    }
+
+    private func sleepLine() -> String? {
+        guard record.nightLightStatus == .on, let sleep = record.sleepConfirmedAt else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.timeStyle = .short
+        let time = formatter.string(from: sleep)
+        return String(format: NSLocalizedString("record.card.sleep", comment: ""), time)
+    }
+
+    private func rejectLine() -> String? {
+        guard record.nightRejectCount > 0 else { return nil }
+        return String(format: NSLocalizedString("record.card.reject", comment: ""), record.nightRejectCount)
+    }
+
+    private func formattedDate(_ dateString: String) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.dateStyle = .medium
+        if let date = dateFormatter().date(from: dateString) {
+            return formatter.string(from: date)
+        }
+        return dateString
+    }
+
+    private func dateFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
     }
 }

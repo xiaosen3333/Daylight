@@ -1,7 +1,13 @@
 /* 简体中文本地化 */
 "home.title" = "别熬夜了，早点睡";
 "home.subtitle" = "写下白天的你想对今晚说的话";
+"home.title.day" = "白昼之灯已亮起";
+"home.subtitle.day" = "夜间守护已开始";
+"home.title.both" = "今天的两盏光都亮了";
+"home.subtitle.both" = "守住了今天，也给自己一点轻松。";
 "home.button" = "留一句给今晚";
+"home.button.day" = "查看我写下的话";
+"home.button.sleep" = "我要睡觉啦";
 
 "notification.day.title" = "为今晚的你留一句话";
 "notification.day.body" = "如果今晚不熬夜，你会得到什么？";
@@ -35,6 +41,24 @@
 "notification.permission.body" = "开启通知，白昼承诺和夜间守护才能按时提醒你。";
 "notification.permission.settings" = "去设置";
 "notification.permission.later" = "稍后再说";
+
+"record.card.title.off" = "那天的光有点黯淡";
+"record.card.title.day" = "那天的白昼曾亮着";
+"record.card.title.both" = "那天的两盏灯都陪着你";
+"record.card.desc.off" = "那天你没有为自己留下承诺，也没有迎来夜晚的那盏光。";
+"record.card.desc.day" = "那天的白昼亮着，而夜晚的光静静停在了那里。";
+"record.card.desc.both" = "白天的念想与夜晚的守护，那天你都温柔地完成了。";
+"record.card.today.off.title" = "还没点亮白昼之灯";
+"record.card.today.off.desc" = "写一句话给今晚的你，让白天的灯亮起来。";
+"record.card.commitment" = "那天你写下过：%@";
+"record.card.commitment.empty" = "那天你没有对自己说些什么。";
+"record.card.sleep" = "那天你是在 %@ 入睡的。";
+"record.card.reject" = "那晚你曾犹豫过 %d 次。";
+"record.card.dismiss" = "好的";
+"record.card.future.title" = "未来的一天";
+"record.card.future.desc" = "还没到那天呢，相信你一定会在那天点亮两盏灯";
+"record.card.today.day.desc" = "今晚早点睡";
+"record.card.today.day.title" = "白天的灯已点亮";
 
 "commit.title" = "写一句话给今晚的你";
 "commit.title.full" = "如果今晚早点休息，你会更舒服吗？";

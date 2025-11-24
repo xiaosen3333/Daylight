@@ -1,7 +1,13 @@
 /* English localization */
 "home.title" = "Don't stay up—turn in early";
 "home.subtitle" = "Write what your daytime self wants to tell tonight's you";
+"home.title.day" = "Day lamp is on";
+"home.subtitle.day" = "Night guard is ready for you tonight.";
+"home.title.both" = "Both lights are on today";
+"home.subtitle.both" = "You’ve guarded today—now let yourself unwind.";
 "home.button" = "Leave a line for tonight";
+"home.button.day" = "See what I wrote";
+"home.button.sleep" = "I'm ready to sleep";
 
 "notification.day.title" = "Leave a line for tonight";
 "notification.day.body" = "What do you gain if you don't stay up tonight?";
@@ -35,6 +41,24 @@
 "notification.permission.body" = "Turn on notifications so we can remind you about your daytime commitment and night guard.";
 "notification.permission.settings" = "Open Settings";
 "notification.permission.later" = "Maybe later";
+
+"record.card.title.off" = "No lights on";
+"record.card.title.day" = "Day lamp only";
+"record.card.title.both" = "Both lamps on";
+"record.card.desc.off" = "No daytime commitment and no night guard recorded.";
+"record.card.desc.day" = "Daytime commitment is on, night guard not completed.";
+"record.card.desc.both" = "Daytime commitment and night guard are both done.";
+"record.card.today.off.title" = "Day lamp is still off";
+"record.card.today.off.desc" = "Leave a line for tonight to light your daytime lamp.";
+"record.card.commitment" = "Commitment: %@";
+"record.card.commitment.empty" = "No commitment written this day.";
+"record.card.sleep" = "Sleep time: %@";
+"record.card.reject" = "Night hesitations: %d";
+"record.card.dismiss" = "Got it";
+"record.card.future.title" = "A future day";
+"record.card.future.desc" = "That day isn’t here yet—trust yourself to light both lamps.";
+"record.card.today.day.desc" = "Turn in early tonight.";
+"record.card.today.day.title" = "Day lamp is on";
 
 "commit.title" = "Write a line for your night self";
 "commit.title.full" = "If you turn in early tonight, how will you feel?";

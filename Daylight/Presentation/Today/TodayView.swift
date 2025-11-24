@@ -48,10 +48,10 @@ struct TodayView: View {
                                     .padding(.top, showStats ? 20 : 40)
 
                                 VStack(spacing: showStats ? 0 : 4) {
-                                    Text(NSLocalizedString("home.title", comment: ""))
+                                    Text(homeTitle)
                                         .font(.system(size: 38, weight: .bold))
                                         .foregroundColor(.white.opacity(0.9))
-                                    Text(NSLocalizedString("home.subtitle", comment: ""))
+                                    Text(homeSubtitle)
                                         .font(.system(size: 19, weight: .regular))
                                         .foregroundColor(.white.opacity(0.8))
                                 }
@@ -60,6 +60,9 @@ struct TodayView: View {
                                 if !showStats {
                                     getStartedButton
                                         .padding(.top, 6)
+                                    if showSleepCTA {
+                                        sleepCTAButton
+                                    }
                                 }
                             }
                             .padding(.horizontal, 28)
@@ -99,7 +102,6 @@ struct TodayView: View {
             .ignoresSafeArea()
             .onAppear {
                 viewModel.onAppear()
-                print("TodayView locale: \(viewModel.locale.identifier)")
             }
             .environment(\.locale, viewModel.locale)
             .navigationDestination(isPresented: $showDayPage) {
@@ -177,7 +179,7 @@ struct TodayView: View {
         Button {
             showDayPage = true
         } label: {
-            Text(NSLocalizedString("home.button", comment: ""))
+            Text(homeButtonTitle)
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundColor(.white.opacity(0.9))
                 .frame(maxWidth: .infinity)
@@ -233,7 +235,10 @@ struct TodayView: View {
             selectedRecord: selectedRecord,
             streak: viewModel.state.streak,
             currentMonth: currentMonth,
+            userId: viewModel.currentUserId ?? "",
             locale: viewModel.locale,
+            timeZone: viewModel.dateHelper.timeZone,
+            todayKey: viewModel.dateHelper.dayFormatter.string(from: Date()),
             onMonthChange: { newMonth in
                 currentMonth = newMonth
                 Task { await loadStatsData(month: newMonth) }
@@ -332,21 +337,30 @@ struct TodayView: View {
         if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
-            selectedRecord = viewModel.monthRecords.first
+            let userId = viewModel.currentUserId ?? ""
+            selectedRecord = defaultRecord(for: userId, date: todayKey)
         }
         isLoadingStats = false
     }
 
     private func applyMock(_ mock: MockSyncData) {
-        let records = MockSyncDataLoader.shared.toDayRecords(mock, timezone: viewModel.dateHelper.timeZone)
-        viewModel.monthRecords = records
+        var records = MockSyncDataLoader.shared.toDayRecords(mock, timezone: viewModel.dateHelper.timeZone)
         viewModel.state.streak = StreakResult(current: mock.stats.currentStreak, longest: mock.stats.longestStreak)
 
         let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
+        if let todayRecord = viewModel.state.record, todayRecord.date == todayKey {
+            if let idx = records.firstIndex(where: { $0.date == todayKey }) {
+                records[idx] = todayRecord
+            } else {
+                records.append(todayRecord)
+            }
+        }
+        viewModel.monthRecords = records
+
         if let today = records.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
-            selectedRecord = records.first
+            selectedRecord = defaultRecord(for: viewModel.currentUserId ?? "", date: todayKey)
         }
     }
 
@@ -391,6 +405,97 @@ struct TodayView: View {
     private func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         openURL(url)
+    }
+
+    private enum HomeLampStatus {
+        case off, dayOnly, both
+    }
+
+    private var homeStatus: HomeLampStatus {
+        guard let record = viewModel.state.record else { return .off }
+        if record.dayLightStatus == .on && record.nightLightStatus == .on {
+            return .both
+        }
+        if record.dayLightStatus == .on {
+            return .dayOnly
+        }
+        return .off
+    }
+
+    private var showSleepCTA: Bool {
+        guard let record = viewModel.state.record,
+              let settings = viewModel.state.settings else { return false }
+        guard record.dayLightStatus == .on, record.nightLightStatus == .off else { return false }
+        return isInExtendedNightWindow(settings: settings)
+    }
+
+    private var sleepCTAButton: some View {
+        Button {
+            showNightPage = true
+        } label: {
+            Text(NSLocalizedString("home.button.sleep", comment: ""))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.white.opacity(0.9))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.18))
+                .cornerRadius(22)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
+    }
+
+    private var homeButtonTitle: String {
+        switch homeStatus {
+        case .off, .both:
+            return NSLocalizedString("home.button", comment: "")
+        case .dayOnly:
+            return NSLocalizedString("home.button.day", comment: "")
+        }
+    }
+
+    private func isInExtendedNightWindow(settings: Settings, now: Date = Date()) -> Bool {
+        let startMinutes = minutes(from: settings.nightReminderStart)
+        let endMinutes = 5 * 60 // 05:00 next day
+
+        var calendar = viewModel.dateHelper.calendar
+        calendar.timeZone = viewModel.dateHelper.timeZone
+        let components = calendar.dateComponents(in: viewModel.dateHelper.timeZone, from: now)
+        guard let hour = components.hour, let minute = components.minute else { return false }
+        let currentMinutes = hour * 60 + minute
+
+        // Night window spans across midnight: start -> 24:00 plus 00:00 -> 05:00
+        return currentMinutes >= startMinutes || currentMinutes < endMinutes
+    }
+
+    private func minutes(from time: String) -> Int {
+        let parts = time.split(separator: ":")
+        guard parts.count == 2,
+              let hour = Int(parts[0]),
+              let minute = Int(parts[1]) else { return 0 }
+        return hour * 60 + minute
+    }
+
+    private var homeTitle: String {
+        switch homeStatus {
+        case .off:
+            return NSLocalizedString("home.title", comment: "")
+        case .dayOnly:
+            return NSLocalizedString("home.title.day", comment: "")
+        case .both:
+            return NSLocalizedString("home.title.both", comment: "")
+        }
+    }
+
+    private var homeSubtitle: String {
+        switch homeStatus {
+        case .off:
+            return NSLocalizedString("home.subtitle", comment: "")
+        case .dayOnly:
+            return NSLocalizedString("home.subtitle.day", comment: "")
+        case .both:
+            return NSLocalizedString("home.subtitle.both", comment: "")
+        }
     }
 
     private func monthGridData() -> [[DayCell?]] {
