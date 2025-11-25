@@ -327,11 +327,6 @@ struct TodayView: View {
             currentMonth = month
         }
         isLoadingStats = true
-        if let mock = MockSyncDataLoader.shared.load() {
-            applyMock(mock)
-            isLoadingStats = false
-            return
-        }
         await viewModel.loadMonth(currentMonth)
         let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
         if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
@@ -341,27 +336,6 @@ struct TodayView: View {
             selectedRecord = defaultRecord(for: userId, date: todayKey)
         }
         isLoadingStats = false
-    }
-
-    private func applyMock(_ mock: MockSyncData) {
-        var records = MockSyncDataLoader.shared.toDayRecords(mock, timezone: viewModel.dateHelper.timeZone)
-        viewModel.state.streak = StreakResult(current: mock.stats.currentStreak, longest: mock.stats.longestStreak)
-
-        let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
-        if let todayRecord = viewModel.state.record, todayRecord.date == todayKey {
-            if let idx = records.firstIndex(where: { $0.date == todayKey }) {
-                records[idx] = todayRecord
-            } else {
-                records.append(todayRecord)
-            }
-        }
-        viewModel.monthRecords = records
-
-        if let today = records.first(where: { $0.date == todayKey }) {
-            selectedRecord = today
-        } else {
-            selectedRecord = defaultRecord(for: viewModel.currentUserId ?? "", date: todayKey)
-        }
     }
 
     private func changeMonth(by offset: Int) {

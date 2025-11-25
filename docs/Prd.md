@@ -18,11 +18,17 @@
 - 本地推送：仅本地通知；权限拒绝时前台弹窗兜底。
 - 数据：匿名本地用户，JSON 存储 DayRecord/Settings，schemaVersion 预留，pending sync stub 保留但默认不上传。
 
+## 调试用模拟数据（Debug）
+- 默认关闭；Release 永远关闭。
+- 开启：Xcode Scheme → Run → Arguments，添加 Launch Argument `-USE_MOCK_DATA`（或环境变量 `USE_MOCK_DATA=1`）。如需内存版远端 stub，再加 `-USE_REMOTE_STUB`。
+- 数据来源：`Resources/Mocks/mock-data.json`（可替换同名文件自定义）。
+- 关闭：移除上述开关即可；如之前写入了 mock 数据，可卸载 App/重置模拟器以清掉本地存储。
+
 ## 当前实现进度（代码自查）
 - 已对齐：SwiftUI 入口/白昼承诺/夜间守护页面视觉与灯链/设置页；本地化（en/zh-Hans）与语言切换、昵称配置已接通。
 - 已落地核心用例：LoadTodayState/SetDayCommitment/ConfirmSleep/RejectNight/LoadLightChain/GetStreak/LoadMonth，按切日规则写入本地 JSON（DayRecord/Settings/User，Keychain 存 deviceId），缺失日期生成占位记录并计算 streak；PendingSync stub 仅入队不上传。
 - 提醒：NotificationScheduler 排程 11:00 白昼提醒、夜间窗口内两次提醒（默认 30 分钟间隔，需 dayLightStatus==ON & nightLightStatus==OFF），支持承诺预览/昵称；提交承诺后若未授权会请求一次并用前台 Alert 引导开启；前台通知 delegate 做 deeplink 导航。
-- UI 交互：白昼承诺页 1–80 字校验，夜间守护页“睡觉”点亮夜灯/“继续玩”计数，主页文案/按钮随灯状态切换，夜间窗口（到次日 05:00）仅亮白灯时露出“我要睡觉啦”入口，灯链支持 14 天展示+月视图细节（可读取 docs/mock-sync-data.json 作为模拟数据），日历点击切换下方状态卡（默认显示今天，未来日期给出鼓励文案，今日仅亮白灯提示“今晚早点睡”），设置页实时保存提醒时间/间隔/夜间开关/是否在通知显示承诺，返回样式与白天承诺页一致。
+- UI 交互：白昼承诺页 1–80 字校验，夜间守护页“睡觉”点亮夜灯/“继续玩”计数，主页文案/按钮随灯状态切换，夜间窗口（到次日 05:00）仅亮白灯时露出“我要睡觉啦”入口，灯链支持 14 天展示+月视图细节（可在 Debug 模式通过 Resources/Mocks/mock-data.json 配合开关注入模拟数据），日历点击切换下方状态卡（默认显示今天，未来日期给出鼓励文案，今日仅亮白灯提示“今晚早点睡”），设置页实时保存提醒时间/间隔/夜间开关/是否在通知显示承诺，返回样式与白天承诺页一致。
 - 差距/风险：夜间守护窗口校验仅在 UI 层（用例未限制，开发入口可绕过）；内置 8 条推荐理由仅保留常量，页面只露出 3 条；待同步队列仅写入本地无上传/重试（符合“默认不上传”，但无出站逻辑）；“早睡自动点亮夜灯”未实现（当前需用户在夜间页点击）。
 
 ## V2 及以后版本（Future Releases）

@@ -333,12 +333,6 @@ struct LightChainPage: View {
             currentMonth = month
         }
         isLoadingMonth = true
-        if let mock = MockSyncDataLoader.shared.load() {
-            applyMock(mock)
-            isLoadingMonth = false
-            return
-        }
-
         await viewModel.loadMonth(currentMonth)
         let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
         if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
@@ -404,27 +398,6 @@ struct LightChainPage: View {
             return formatter.string(from: date)
         }
         return record.date
-    }
-
-    private func applyMock(_ mock: MockSyncData) {
-        var records = MockSyncDataLoader.shared.toDayRecords(mock, timezone: viewModel.dateHelper.timeZone)
-        viewModel.state.streak = StreakResult(current: mock.stats.currentStreak, longest: mock.stats.longestStreak)
-
-        let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
-        if let todayRecord = viewModel.state.record, todayRecord.date == todayKey {
-            if let idx = records.firstIndex(where: { $0.date == todayKey }) {
-                records[idx] = todayRecord
-            } else {
-                records.append(todayRecord)
-            }
-        }
-        viewModel.monthRecords = records
-
-        if let today = records.first(where: { $0.date == todayKey }) {
-            selectedRecord = today
-        } else {
-            selectedRecord = defaultRecord(for: viewModel.currentUserId ?? "", date: todayKey)
-        }
     }
 }
 

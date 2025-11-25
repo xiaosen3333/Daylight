@@ -1,0 +1,110 @@
+{
+  "user": {
+    "id": "mock-user",
+    "nickname": "Aurora",
+    "timezone": "Asia/Shanghai",
+    "locale": "zh-Hans",
+    "createdAt": "2024-12-01T09:20:00Z"
+  },
+  "settings": {
+    "dayReminderTime": "22:00",
+    "nightReminderStart": "22:30",
+    "nightReminderEnd": "00:30",
+    "nightReminderInterval": 30,
+    "nightReminderEnabled": true,
+    "showCommitmentInNotification": true,
+    "version": 1
+  },
+  "records": [
+    {
+      "date": "2025-11-15",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "ON",
+      "commitmentText": "周末也要早点睡",
+      "sleepConfirmedAt": "2025-11-15T23:35:00+08:00",
+      "nightRejectCount": 0,
+      "updatedAt": "2025-11-15T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-16",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "ON",
+      "commitmentText": "不给周一留麻烦",
+      "sleepConfirmedAt": "2025-11-16T23:18:00+08:00",
+      "nightRejectCount": 1,
+      "updatedAt": "2025-11-16T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-17",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "OFF",
+      "commitmentText": "少刷短视频",
+      "sleepConfirmedAt": null,
+      "nightRejectCount": 2,
+      "updatedAt": "2025-11-17T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-18",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "ON",
+      "commitmentText": "明早要精神好",
+      "sleepConfirmedAt": "2025-11-18T23:40:00+08:00",
+      "nightRejectCount": 0,
+      "updatedAt": "2025-11-18T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-19",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "ON",
+      "commitmentText": "早点睡皮肤好",
+      "sleepConfirmedAt": "2025-11-19T23:28:00+08:00",
+      "nightRejectCount": 0,
+      "updatedAt": "2025-11-19T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-20",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "ON",
+      "commitmentText": "不带手机上床",
+      "sleepConfirmedAt": "2025-11-20T23:52:00+08:00",
+      "nightRejectCount": 0,
+      "updatedAt": "2025-11-20T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-21",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "OFF",
+      "commitmentText": "少打游戏",
+      "sleepConfirmedAt": null,
+      "nightRejectCount": 2,
+      "updatedAt": "2025-11-21T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-22",
+      "dayLightStatus": "OFF",
+      "nightLightStatus": "OFF",
+      "commitmentText": null,
+      "sleepConfirmedAt": null,
+      "nightRejectCount": 0,
+      "updatedAt": "2025-11-22T16:00:00Z",
+      "version": 1
+    },
+    {
+      "date": "2025-11-23",
+      "dayLightStatus": "ON",
+      "nightLightStatus": "ON",
+      "commitmentText": "今天一定休息好",
+      "sleepConfirmedAt": "2025-11-23T23:30:00+08:00",
+      "nightRejectCount": 0,
+      "updatedAt": "2025-11-23T16:00:00Z",
+      "version": 1
+    }
+  ]
+}

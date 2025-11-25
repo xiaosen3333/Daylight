@@ -29,6 +29,7 @@
 
 ## 5. 交付与验收
 - 验收基准：`feature-spec-daylight-core.md` 中的 AC 与 QA 用例；埋点事件按表覆盖。
+- 注意事项：尝试构建并处理编译错误xcodebuild -scheme Daylight -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build，新文件要编入xcode索引
 - 性能：页面切换 <100ms，灯亮动效 60fps，灯链支持 30–60 天视图。
 - 无障碍：文本对比度 ≥4.5:1；点击区域 ≥44x44pt；VoiceOver 可读灯状态。
 

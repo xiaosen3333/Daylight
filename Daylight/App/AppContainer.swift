@@ -6,6 +6,11 @@ import Combine
 final class AppContainer: ObservableObject {
     @Published var todayViewModel: TodayViewModel?
     @Published var errorMessage: String?
+    private let configuration: AppConfiguration
+
+    init(configuration: AppConfiguration = .load()) {
+        self.configuration = configuration
+    }
 
     func bootstrap() {
         Task {
@@ -18,8 +23,12 @@ final class AppContainer: ObservableObject {
                 let settingsLocal = SettingsLocalDataSource()
                 let pendingLocal = PendingSyncLocalDataSource()
 
-                // MVP 使用本地存储与 stub 远端
-                let remote: RemoteAPIStub? = nil
+                let mockSeeder = MockDataSeeder(configuration: configuration)
+                await mockSeeder.seedIfNeeded(userLocal: userLocal,
+                                              settingsLocal: settingsLocal,
+                                              dayRecordLocal: dayLocal)
+
+                let remote: RemoteAPIStub? = configuration.useRemoteStub ? RemoteAPIStub() : nil
 
                 let userRepository = UserRepositoryImpl(local: userLocal, remote: remote)
                 let user = try await userRepository.currentUser()
