@@ -56,7 +56,7 @@ struct LightChainPage: View {
     }
 
     private var background: some View {
-        Color(red: 93/255, green: 140/255, blue: 141/255)
+        DaylightColors.bgPrimary
             .ignoresSafeArea()
     }
 
@@ -77,23 +77,23 @@ struct LightChainPage: View {
         VStack(alignment: .leading, spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.32))
+                    .fill(DaylightColors.glowGold(opacity: 0.32))
                     .frame(width: 160, height: 160)
                     .blur(radius: 30)
                 Circle()
-                    .fill(Color(red: 255/255, green: 236/255, blue: 173/255))
+                    .fill(DaylightColors.glowGold)
                     .frame(width: 110, height: 110)
             }
             Text(NSLocalizedString("lightchain.title", comment: ""))
-                .font(.system(size: 26, weight: .bold))
-                .foregroundColor(Color(red: 236/255, green: 246/255, blue: 225/255))
+                .font(DaylightTypography.title3)
+                .foregroundColor(DaylightColors.calendarText)
             Text(NSLocalizedString("lightchain.subtitle", comment: ""))
-                .font(.system(size: 16, weight: .medium))
+                .font(DaylightTypography.body2Medium)
                 .foregroundColor(.white.opacity(0.85))
             HStack(spacing: 10) {
                 ForEach(0..<5) { index in
                     Circle()
-                        .fill(index < 4 ? Color(red: 255/255, green: 236/255, blue: 173/255) : Color.white.opacity(0.25))
+                        .fill(index < 4 ? DaylightColors.glowGold : DaylightColors.bgOverlay25)
                         .frame(width: 12, height: 12)
                 }
             }
@@ -101,11 +101,8 @@ struct LightChainPage: View {
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 260)
         .background(
-            RoundedRectangle(cornerRadius: 26)
-                .fill(LinearGradient(colors: [Color(red: 78/255, green: 125/255, blue: 124/255),
-                                              Color(red: 63/255, green: 102/255, blue: 103/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
+            RoundedRectangle(cornerRadius: DaylightRadius.cardLarge)
+                .fill(DaylightGradients.cardSun)
         )
     }
 
@@ -114,30 +111,30 @@ struct LightChainPage: View {
             HStack {
                 Button { changeMonth(by: -1) } label: {
                     Image(systemName: "chevron.left")
-                        .foregroundColor(Color(red: 74/255, green: 92/255, blue: 70/255))
+                        .foregroundColor(DaylightColors.calendarArrow)
                 }
                 Spacer()
                 Text(monthTitle(currentMonth))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(Color(red: 68/255, green: 85/255, blue: 63/255))
+                    .font(DaylightTypography.callout)
+                    .foregroundColor(DaylightColors.calendarMonth)
                 Spacer()
                 Button { changeMonth(by: 1) } label: {
                     Image(systemName: "chevron.right")
-                        .foregroundColor(Color(red: 74/255, green: 92/255, blue: 70/255))
+                        .foregroundColor(DaylightColors.calendarArrow)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(0.28))
-            .cornerRadius(14)
+            .background(DaylightColors.bgOverlay28)
+            .cornerRadius(DaylightRadius.nav)
 
             VStack(spacing: 10) {
                 weekdayHeader
-                    .foregroundColor(Color(red: 74/255, green: 92/255, blue: 70/255).opacity(0.9))
+                    .foregroundColor(DaylightColors.calendarArrow.opacity(DaylightTextOpacity.primary))
                 if isLoadingMonth {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(Color(red: 74/255, green: 92/255, blue: 70/255))
+                        .tint(DaylightColors.calendarArrow)
                 } else {
                     calendarGrid
                 }
@@ -146,11 +143,8 @@ struct LightChainPage: View {
         .padding(16)
         .frame(maxWidth: .infinity, minHeight: 260)
         .background(
-            RoundedRectangle(cornerRadius: 26)
-                .fill(LinearGradient(colors: [Color(red: 248/255, green: 243/255, blue: 207/255),
-                                              Color(red: 242/255, green: 234/255, blue: 187/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
+            RoundedRectangle(cornerRadius: DaylightRadius.cardLarge)
+                .fill(DaylightGradients.cardCalendarLight)
         )
     }
 
@@ -158,8 +152,8 @@ struct LightChainPage: View {
         HStack {
             ForEach(weekdaySymbols, id: \.self) { day in
                 Text(day)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(DaylightTypography.caption2)
+                    .foregroundColor(.white.opacity(DaylightTextOpacity.tertiary))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -203,7 +197,7 @@ struct LightChainPage: View {
         } label: {
             VStack {
                 Text(day.dayString)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(DaylightTypography.caption1)
                     .foregroundColor(status.textColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -238,10 +232,10 @@ struct LightChainPage: View {
         let longest = viewModel.state.streak?.longest ?? 0
         return VStack(alignment: .leading, spacing: 14) {
             Text(NSLocalizedString("lightchain.streak.title", comment: ""))
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(Color(red: 255/255, green: 236/255, blue: 173/255))
+                .font(DaylightTypography.headline)
+                .foregroundColor(DaylightColors.glowGold)
             Text(String(format: NSLocalizedString("lightchain.streak.subtitle", comment: ""), current, longest))
-                .font(.system(size: 15, weight: .medium))
+                .font(DaylightTypography.footnoteMedium)
                 .foregroundColor(.white.opacity(0.85))
             HStack(spacing: 14) {
                 streakPill(value: current)
@@ -251,11 +245,8 @@ struct LightChainPage: View {
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 220)
         .background(
-            RoundedRectangle(cornerRadius: 26)
-                .fill(LinearGradient(colors: [Color(red: 20/255, green: 43/255, blue: 49/255),
-                                              Color(red: 30/255, green: 60/255, blue: 66/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
+            RoundedRectangle(cornerRadius: DaylightRadius.cardLarge)
+                .fill(DaylightGradients.cardStreak)
         )
     }
 
@@ -264,14 +255,14 @@ struct LightChainPage: View {
             HStack(spacing: 10) {
                 ForEach(0..<3) { index in
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(value > index ? Color(red: 255/255, green: 236/255, blue: 173/255) : Color.white.opacity(0.2))
+                        .fill(value > index ? DaylightColors.glowGold : Color.white.opacity(0.2))
                         .frame(width: 22, height: 50)
-                        .shadow(color: Color(red: 255/255, green: 236/255, blue: 173/255).opacity(value > index ? 0.4 : 0), radius: 8)
+                        .shadow(color: DaylightColors.glowGold(opacity: value > index ? 0.4 : 0), radius: 8)
                 }
             }
             Text("\(value)")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white.opacity(0.9))
+                .font(DaylightTypography.body2Medium)
+                .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
         }
         .frame(maxWidth: .infinity)
     }
@@ -280,44 +271,41 @@ struct LightChainPage: View {
         let record = selectedRecord
         return VStack(alignment: .leading, spacing: 12) {
             Text(NSLocalizedString("lightchain.detail.title", comment: ""))
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(Color(red: 255/255, green: 236/255, blue: 173/255))
+                .font(DaylightTypography.headline)
+                .foregroundColor(DaylightColors.glowGold)
             if let record = record {
                 Text(formattedDate(record))
-                    .font(.system(size: 14, weight: .medium))
+                    .font(DaylightTypography.caption1Medium)
                     .foregroundColor(.white.opacity(0.85))
                 if let text = record.commitmentText, !text.isEmpty {
                     Text(text)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(DaylightTypography.body2Medium)
                         .foregroundColor(.white.opacity(0.92))
                 } else {
                     Text(NSLocalizedString("lightchain.detail.empty", comment: ""))
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
+                        .font(DaylightTypography.body2Medium)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.muted))
                 }
                 if let sleep = record.sleepConfirmedAt {
                     let time = viewModel.dateHelper.shortTimeFormatter.string(from: sleep)
                     Text(String(format: NSLocalizedString("lightchain.detail.sleep", comment: ""), time))
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(DaylightTypography.caption1Medium)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                 }
                 Text(String(format: NSLocalizedString("lightchain.detail.reject", comment: ""), record.nightRejectCount))
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(DaylightTypography.caption1Medium)
+                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
             } else {
                 Text(NSLocalizedString("lightchain.detail.empty", comment: ""))
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(DaylightTypography.body2Medium)
+                    .foregroundColor(.white.opacity(DaylightTextOpacity.tertiary))
             }
         }
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 220)
         .background(
-            RoundedRectangle(cornerRadius: 26)
-                .fill(LinearGradient(colors: [Color(red: 22/255, green: 44/255, blue: 54/255),
-                                              Color(red: 34/255, green: 61/255, blue: 68/255)],
-                                     startPoint: .top,
-                                     endPoint: .bottom))
+            RoundedRectangle(cornerRadius: DaylightRadius.cardLarge)
+                .fill(DaylightGradients.cardDetail)
         )
     }
 
@@ -439,31 +427,31 @@ private enum DayVisualStatus {
     var background: Color {
         switch self {
         case .complete:
-            return Color(red: 255/255, green: 236/255, blue: 173/255)
+            return DaylightColors.glowGold
         case .partial:
-            return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.4)
+            return DaylightColors.glowGold(opacity: 0.4)
         case .off:
-            return Color.white.opacity(0.12)
+            return DaylightColors.bgOverlay12
         }
     }
 
-        var textColor: Color {
-            switch self {
-            case .complete:
-                return Color(red: 51/255, green: 79/255, blue: 80/255)
-            case .partial:
-                return Color.white.opacity(0.95)
-            case .off:
-                return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.65)
-            }
+    var textColor: Color {
+        switch self {
+        case .complete:
+            return DaylightColors.textOnGlow
+        case .partial:
+            return Color.white.opacity(0.95)
+        case .off:
+            return DaylightColors.glowGold(opacity: 0.65)
         }
+    }
 
     var glow: Color {
         switch self {
         case .complete:
-            return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.6)
+            return DaylightColors.glowGold(opacity: 0.6)
         case .partial:
-            return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.3)
+            return DaylightColors.glowGold(opacity: 0.3)
         case .off:
             return Color.clear
         }

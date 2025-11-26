@@ -1,5 +1,95 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.2.0）
+- 目的：建立以真实界面为基准的 Design System，消除页面硬编码样式（颜色/字体/圆角），提升 UI 一致性与可维护性。
+- 范围：`DesignTokens.swift` 扩展新 Token；新增 5 个通用组件；8 个页面文件替换硬编码为 Token 引用。
+- 影响面：所有页面视觉保持不变，仅代码层替换；Data/Domain/Core 层完全不受影响。
+- 验收要点：编译通过；所有页面 UI 无视觉回归；`grep -r "Color(red:" Daylight/` 返回 0 结果；废弃 Token 产生编译警告。
+
+### ASCII 原型（Design Token 架构）
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DesignTokens.swift                           │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightColors (基于真实界面)                                   │
+│  ├── 背景: bgPrimary #5D8C8D | bgNight #0C2740                  │
+│  ├── 交互: actionPrimary #467577                                │
+│  ├── 灯光: glowGold #FFECAD (+ opacity variants)                │
+│  ├── 覆盖: bgOverlay08/12/15/18 (white opacity)                 │
+│  ├── 渐变: cardPrimary/calendarDark/streak/detail/sun           │
+│  └── 状态: statusSynced/Failed/Syncing                          │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightTypography (13 级字体)                                  │
+│  ├── hero(38) > display(36) > title1(34) > title2(30)           │
+│  ├── title3(26) > headline(22) > subhead(20) > bodyLarge(19)    │
+│  └── callout(18) > body2(16) > footnote(15) > caption1/2(14/13) │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightRadius (11 级圆角)                                      │
+│  └── xl(34) > lg(30) > button(28) > card(26) > capsule(24)      │
+│      > md(22) > sm(16) > nav(14) > xs(12) > xxs(10) > pill(999) │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightTextOpacity                                            │
+│  └── primary(0.9) | secondary(0.8) | tertiary(0.7) | muted(0.6) │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### ASCII 原型（组件体系）
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     DesignSystem/Components                     │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightPrimaryButton (更新)                                    │
+│  ┌─────────────────────────────────────────┐                    │
+│  │  bg: actionPrimary | text: white 90%   │                    │
+│  │  font: headline(22) | radius: button(28)│                    │
+│  └─────────────────────────────────────────┘                    │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightSecondaryButton (新增)                                  │
+│  ┌─────────────────────────────────────────┐                    │
+│  │  bg: overlay12 | text: glowGold 90%    │                    │
+│  │  font: subhead(20) | radius: button(28) │                    │
+│  └─────────────────────────────────────────┘                    │
+├─────────────────────────────────────────────────────────────────┤
+│  DaylightGhostButton (新增)                                      │
+│  ┌─────────────────────────────────────────┐                    │
+│  │  bg: overlay08 | text: white 90%       │                    │
+│  │  radius: xs(12)                         │                    │
+│  └─────────────────────────────────────────┘                    │
+├─────────────────────────────────────────────────────────────────┤
+│  GlowingSun / GlowingMoon (新增)                                 │
+│         ╭─────────────╮                                         │
+│      ╭──┤  glowGold   ├──╮   三层光晕: 50% blur60               │
+│      ╰──┴─────────────┴──╯              60% blur30              │
+│                                        100% core                │
+├─────────────────────────────────────────────────────────────────┤
+│  LightDot (新增)                                                 │
+│  ● on: glowGold + shadow    ◐ partial: glowGold 55%            │
+│  ○ off: white 25%                                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 技术架构与要点更新
+- Token 补全：在 `DesignTokens.swift` 中基于真实界面新增约 50 个 Token（颜色/字体/圆角/透明度/渐变），旧未使用 Token 标记 `@available(*, deprecated)`。
+- 组件新增：`SecondaryButton`/`GhostButton`/`GlowingSun`/`GlowingMoon`/`LightDot` 封装通用 UI 模式。
+- 页面迁移：8 个文件的硬编码样式替换为 Token（TodayView/NightGuardPage/SettingsPage/LightChainPage/LightChainVisualizationComponents/DeveloperToolsPage/PrimaryButton）。
+- 隔离验证：Data/Domain/Core 层无任何改动，回归风险限定在 Presentation 层视觉。
+
+### 文件变更清单
+| 类型 | 文件 | 说明 |
+|------|------|------|
+| 修改 | DesignSystem/DesignTokens.swift | 新增 Token + 废弃标记 |
+| 修改 | DesignSystem/Components/PrimaryButton.swift | 更新配色 |
+| 新增 | DesignSystem/Components/SecondaryButton.swift | 次级按钮 |
+| 新增 | DesignSystem/Components/GhostButton.swift | 幽灵按钮 |
+| 新增 | DesignSystem/Components/GlowingSun.swift | 光晕组件 |
+| 新增 | DesignSystem/Components/LightDot.swift | 灯珠组件 |
+| 修改 | Presentation/Today/TodayView.swift | 替换硬编码 |
+| 修改 | Presentation/Today/NightGuardPage.swift | 替换硬编码 |
+| 修改 | Presentation/Settings/SettingsPage.swift | 替换硬编码 |
+| 修改 | Presentation/LightChain/LightChainPage.swift | 替换硬编码 |
+| 修改 | Presentation/LightChain/Components/... | 替换硬编码 |
+| 修改 | Presentation/Dev/DeveloperToolsPage.swift | 替换硬编码 |
+
 ## 新版本更新（1.1.8）
 - 目的：设置页保存与通知重排节流，拖动/输入不再频繁写文件或重复授权；昵称仅在确认/失焦时提交。
 - 范围：`SettingsPage` 视图层的保存触发与昵称提交逻辑；底层 ViewModel/通知排程/其他模块不变。

@@ -34,9 +34,9 @@ struct TodayView: View {
                                     showSettingsPage = true
                                 } label: {
                                     Image(systemName: "gearshape.fill")
-                                        .foregroundColor(.white.opacity(0.8))
+                                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                                         .padding(10)
-                                        .background(Color.white.opacity(0.12))
+                                        .background(DaylightColors.bgOverlay12)
                                         .clipShape(Circle())
                                 }
                                 .padding(.trailing, 10)
@@ -45,16 +45,16 @@ struct TodayView: View {
                             .padding(.trailing, 20)
 
                             VStack(spacing: showStats ? -20 : 24) {
-                                glowingSun
+                                GlowingSun(size: 140)
                                     .padding(.top, showStats ? 20 : 40)
 
                                 VStack(spacing: showStats ? 0 : 4) {
                                     Text(homeTitle)
-                                        .font(.system(size: 38, weight: .bold))
-                                        .foregroundColor(.white.opacity(0.9))
+                                        .font(DaylightTypography.hero)
+                                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                                     Text(homeSubtitle)
-                                        .font(.system(size: 19, weight: .regular))
-                                        .foregroundColor(.white.opacity(0.8))
+                                        .font(DaylightTypography.bodyLarge)
+                                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                                 }
                                 .padding(.top, 4)
 
@@ -71,7 +71,7 @@ struct TodayView: View {
                             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showStats)
 
                             Spacer(minLength: showStats ? -80 : 50)
-                            
+
                             lightChainBar
                                 .padding(.bottom, 28)
 
@@ -165,48 +165,12 @@ struct TodayView: View {
     }
 
     private var background: some View {
-        Color(red: 93/255, green: 140/255, blue: 141/255)
-    }
-
-    private var glowingSun: some View {
-        ZStack {
-            Circle()
-                .fill(Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.5))
-                .frame(width: 240, height: 240)
-                .blur(radius: 60)
-            Circle()
-                .fill(Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.6))
-                .frame(width: 180, height: 180)
-                .blur(radius: 30)
-            Circle()
-                .fill(Color(red: 255/255, green: 236/255, blue: 173/255))
-                .frame(width: 140, height: 140)
-        }
-        .padding(.top, 40)
+        DaylightColors.bgPrimary
     }
 
     private var getStartedButton: some View {
-        Button {
+        DaylightPrimaryButton(title: homeButtonTitle) {
             showDayPage = true
-        } label: {
-            Text(homeButtonTitle)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(.white.opacity(0.9))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color(red: 70/255, green: 117/255, blue: 119/255))
-                .cornerRadius(28)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var progressDots: some View {
-        HStack(spacing: 18) {
-            ForEach(0..<5) { index in
-                Circle()
-                    .fill(index < 4 ? Color(red: 255/255, green: 236/255, blue: 173/255) : Color.white.opacity(0.3))
-                    .frame(width: 16, height: 16)
-            }
         }
     }
 
@@ -218,17 +182,11 @@ struct TodayView: View {
         } label: {
             HStack(spacing: 18) {
                 ForEach(Array(lamps.enumerated()), id: \.offset) { _, record in
-                    let style = lampStyle(for: record)
-                    Circle()
-                        .fill(style.color)
-                        .frame(width: 16, height: 16)
-                        .shadow(color: style.glow, radius: style.glowRadius)
+                    LightDot(status: LightDotStatus(dayLight: record.dayLightStatus, nightLight: record.nightLightStatus))
                 }
                 if paddingCount > 0 {
                     ForEach(0..<paddingCount, id: \.self) { _ in
-                        Circle()
-                            .fill(Color.white.opacity(0.2))
-                            .frame(width: 16, height: 16)
+                        LightDot(status: .off)
                     }
                 }
             }
@@ -264,7 +222,7 @@ struct TodayView: View {
         HStack {
             ForEach(weekdaySymbols, id: \.self) { day in
                 Text(day)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(DaylightTypography.caption2)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -295,7 +253,7 @@ struct TodayView: View {
         } label: {
             VStack {
                 Text(day.dayString)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(DaylightTypography.caption1)
                     .foregroundColor(status.textColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -309,18 +267,6 @@ struct TodayView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
-    }
-
-    private func lampStyle(for record: DayRecord) -> (color: Color, glow: Color, glowRadius: CGFloat) {
-        if record.dayLightStatus == .on && record.nightLightStatus == .on {
-            let color = Color(red: 255/255, green: 236/255, blue: 173/255)
-            return (color, color.opacity(0.4), 6)
-        }
-        if record.dayLightStatus == .on {
-            let color = Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.55)
-            return (color, color.opacity(0.25), 4)
-        }
-        return (Color.white.opacity(0.25), Color.clear, 0)
     }
 
     private func toggleStats() {
@@ -416,18 +362,9 @@ struct TodayView: View {
     }
 
     private var sleepCTAButton: some View {
-        Button {
+        DaylightPrimaryButton(title: NSLocalizedString("home.button.sleep", comment: "")) {
             showNightPage = true
-        } label: {
-            Text(NSLocalizedString("home.button.sleep", comment: ""))
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.white.opacity(0.9))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.white.opacity(0.18))
-                .cornerRadius(22)
         }
-        .buttonStyle(.plain)
         .padding(.top, 4)
     }
 
@@ -507,31 +444,31 @@ private enum DayVisualStatus {
         var background: Color {
             switch self {
             case .complete:
-                return Color(red: 255/255, green: 236/255, blue: 173/255)
+                return DaylightColors.glowGold
             case .partial:
-                return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.4)
+                return DaylightColors.glowGold(opacity: 0.4)
             case .off:
-                return Color.white.opacity(0.12)
+                return DaylightColors.bgOverlay12
             }
         }
 
         var textColor: Color {
             switch self {
             case .complete:
-                return Color(red: 51/255, green: 79/255, blue: 80/255)
+                return DaylightColors.textOnGlow
             case .partial:
                 return Color.white.opacity(0.95)
             case .off:
-                return Color.white.opacity(0.6)
+                return Color.white.opacity(DaylightTextOpacity.muted)
             }
         }
 
         var glow: Color {
             switch self {
             case .complete:
-                return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.6)
+                return DaylightColors.glowGold(opacity: 0.6)
             case .partial:
-                return Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.3)
+                return DaylightColors.glowGold(opacity: 0.3)
             case .off:
                 return Color.clear
             }
@@ -575,17 +512,17 @@ struct DayCommitmentPage: View {
 
     var body: some View {
         ZStack {
-            Color(red: 93/255, green: 140/255, blue: 141/255)
+            DaylightColors.bgPrimary
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                glowingSun
+                GlowingSun(size: 120)
                     .padding(.top, 40)
 
                 Text(NSLocalizedString("commit.title.full", comment: ""))
                     .multilineTextAlignment(.center)
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(DaylightTypography.title2)
+                    .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                     .padding(.horizontal, 24)
 
                 VStack(spacing: 12) {
@@ -596,7 +533,7 @@ struct DayCommitmentPage: View {
                 }
                 .padding(.top, 12)
 
-                Button {
+                DaylightPrimaryButton(title: NSLocalizedString("common.confirm", comment: "")) {
                     Task {
                         viewModel.commitmentText = text
                         await viewModel.submitCommitment()
@@ -604,16 +541,7 @@ struct DayCommitmentPage: View {
                             dismiss()
                         }
                     }
-                } label: {
-                    Text(NSLocalizedString("common.confirm", comment: ""))
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.9))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color(red: 70/255, green: 117/255, blue: 119/255))
-                        .cornerRadius(28)
                 }
-                .buttonStyle(.plain)
                 .padding(.top, 8)
 
                 Spacer()
@@ -622,22 +550,6 @@ struct DayCommitmentPage: View {
             .onAppear {
                 text = viewModel.state.record?.commitmentText ?? ""
             }
-        }
-    }
-
-    private var glowingSun: some View {
-        ZStack {
-            Circle()
-                .fill(Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.5))
-                .frame(width: 220, height: 220)
-                .blur(radius: 60)
-            Circle()
-                .fill(Color(red: 255/255, green: 236/255, blue: 173/255).opacity(0.6))
-                .frame(width: 160, height: 160)
-                .blur(radius: 30)
-            Circle()
-                .fill(Color(red: 255/255, green: 236/255, blue: 173/255))
-                .frame(width: 120, height: 120)
         }
     }
 
@@ -650,16 +562,16 @@ struct DayCommitmentPage: View {
                 ))
                 .padding(.horizontal, 18)
                 .frame(height: 52)
-                .background(Color(red: 70/255, green: 117/255, blue: 119/255))
-                .cornerRadius(24)
+                .background(DaylightColors.actionPrimary)
+                .cornerRadius(DaylightRadius.capsule)
                 .foregroundColor(.white)
             } else {
                 Text(title)
                     .padding(.horizontal, 18)
                     .frame(height: 52)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(red: 70/255, green: 117/255, blue: 119/255))
-                    .cornerRadius(24)
+                    .background(DaylightColors.actionPrimary)
+                    .cornerRadius(DaylightRadius.capsule)
                     .foregroundColor(.white)
             }
         }
@@ -673,8 +585,8 @@ struct DayCommitmentPage: View {
                 .padding(.horizontal, 18)
                 .frame(height: 52)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(red: 70/255, green: 117/255, blue: 119/255))
-                .cornerRadius(24)
+                .background(DaylightColors.actionPrimary)
+                .cornerRadius(DaylightRadius.capsule)
                 .foregroundColor(.white)
         }
         .buttonStyle(.plain)

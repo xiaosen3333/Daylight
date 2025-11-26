@@ -20,32 +20,24 @@ struct DaylightApp: App {
                 } else if let error = container.errorMessage {
                     VStack(spacing: 16) {
                         Text("启动失败")
-                            .font(DaylightTypography.titleMedium)
-                            .foregroundColor(DaylightColors.textPrimary)
+                            .font(DaylightTypography.headline)
+                            .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                         Text(error)
-                            .font(DaylightTypography.bodySecondary)
-                            .foregroundColor(DaylightColors.textSecondary)
+                            .font(DaylightTypography.body)
+                            .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                         Button("重试") {
                             container.bootstrap()
                         }
-                        .foregroundColor(DaylightColors.textPrimary)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        LinearGradient(colors: [DaylightColors.nightIndigo, DaylightColors.nightSky],
-                                       startPoint: .top,
-                                       endPoint: .bottom)
-                            .ignoresSafeArea()
-                    )
+                    .background(DaylightColors.bgPrimary.ignoresSafeArea())
                 } else {
                     ZStack {
-                        LinearGradient(colors: [DaylightColors.nightIndigo, DaylightColors.nightSky],
-                                       startPoint: .top,
-                                       endPoint: .bottom)
-                            .ignoresSafeArea()
+                        DaylightColors.bgPrimary.ignoresSafeArea()
                         ProgressView("加载中…")
-                            .tint(DaylightColors.lampGoldDeep)
-                            .foregroundColor(DaylightColors.textPrimary)
+                            .tint(DaylightColors.glowGold)
+                            .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                     }
                 }
             }

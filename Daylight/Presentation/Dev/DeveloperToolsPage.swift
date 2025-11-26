@@ -6,25 +6,25 @@ struct DeveloperToolsPage: View {
 
     var body: some View {
         ZStack {
-            Color(red: 93/255, green: 140/255, blue: 141/255)
+            DaylightColors.bgPrimary
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
                 Text(NSLocalizedString("dev.title", comment: ""))
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(DaylightTypography.devTitle)
+                    .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                     .padding(.top, 40)
 
                 Button {
                     Task { await viewModel.triggerDayReminderNow() }
                 } label: {
                     Text(NSLocalizedString("dev.trigger.day", comment: ""))
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(DaylightTypography.callout)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.15))
-                        .cornerRadius(18)
+                        .background(DaylightColors.bgOverlay15)
+                        .cornerRadius(DaylightRadius.devButton)
                 }
                 .buttonStyle(.plain)
 
@@ -32,12 +32,12 @@ struct DeveloperToolsPage: View {
                     Task { await viewModel.triggerNightReminderNow() }
                 } label: {
                     Text(NSLocalizedString("dev.trigger.night", comment: ""))
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(DaylightTypography.callout)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.15))
-                        .cornerRadius(18)
+                        .background(DaylightColors.bgOverlay15)
+                        .cornerRadius(DaylightRadius.devButton)
                 }
                 .buttonStyle(.plain)
 
@@ -47,11 +47,11 @@ struct DeveloperToolsPage: View {
                     dismiss()
                 } label: {
                     Text(NSLocalizedString("common.cancel", comment: ""))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                         .padding(.vertical, 12)
                         .padding(.horizontal, 20)
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(12)
+                        .background(DaylightColors.bgOverlay10)
+                        .cornerRadius(DaylightRadius.xs)
                 }
                 .buttonStyle(.plain)
                 .padding(.bottom, 40)

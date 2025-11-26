@@ -14,38 +14,28 @@ struct NightGuardPage: View {
 
                     Text(NSLocalizedString("night.title", comment: ""))
                         .multilineTextAlignment(.center)
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundColor(moonColor.opacity(0.9))
+                        .font(DaylightTypography.display)
+                        .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
                         .padding(.horizontal, 24)
                         .padding(.top, 8)
 
                     Text(viewModel.state.record?.commitmentText ?? NSLocalizedString("night.subtitle.placeholder", comment: ""))
                         .multilineTextAlignment(.center)
-                        .font(.system(size: 20, weight: .regular))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(DaylightTypography.body)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                         .padding(.horizontal, 24)
 
-                    Button {
+                    DaylightSecondaryButton(
+                        title: NSLocalizedString("night.button", comment: ""),
+                        icon: "checkmark"
+                    ) {
                         Task {
                             await viewModel.confirmSleepNow()
                             if viewModel.state.errorMessage == nil {
                                 dismiss()
                             }
                         }
-                    } label: {
-                        HStack {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(moonColor.opacity(0.9))
-                            Text(NSLocalizedString("night.button", comment: ""))
-                                .foregroundColor(moonColor.opacity(0.9))
-                                .font(.system(size: 20, weight: .semibold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.white.opacity(0.12))
-                        .cornerRadius(28)
                     }
-                    .buttonStyle(.plain)
                     .padding(.top, 4)
 
                     Spacer()
@@ -57,34 +47,14 @@ struct NightGuardPage: View {
         }
     }
 
-    private var moonColor: Color {
-        Color(red: 255/255, green: 236/255, blue: 173/255)
-    }
-
     private var nightBackground: some View {
-        Color(red: 12/255, green: 39/255, blue: 64/255)
-    }
-
-    private var glowingMoon: some View {
-        ZStack {
-            Circle()
-                .fill(moonColor.opacity(0.45))
-                .frame(width: 220, height: 220)
-                .blur(radius: 60)
-            Circle()
-                .fill(moonColor.opacity(0.6))
-                .frame(width: 160, height: 160)
-                .blur(radius: 30)
-            Circle()
-                .fill(moonColor)
-                .frame(width: 120, height: 120)
-        }
+        DaylightColors.bgNight
     }
 
     private func starAndMoon(width: CGFloat) -> some View {
         let height = width * 0.8
         return ZStack {
-            glowingMoon
+            GlowingMoon(size: 120)
         }
         .frame(width: width, height: height)
     }

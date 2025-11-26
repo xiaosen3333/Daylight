@@ -44,12 +44,12 @@ struct LightChainPrimaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(NSLocalizedString("lightchain.card.title", comment: "Light chain header"))
-                .font(.system(size: 36, weight: .bold))
-                .foregroundColor(cardText)
+                .font(DaylightTypography.display)
+                .foregroundColor(DaylightColors.glowGold)
 
             Text(NSLocalizedString("lightchain.card.subtitle", comment: "Light chain subtitle"))
-                .font(.system(size: 22, weight: .regular))
-                .foregroundColor(cardText)
+                .font(DaylightTypography.headline)
+                .foregroundColor(DaylightColors.glowGold)
                 .lineSpacing(6)
 
             HStack(spacing: 30) {
@@ -68,50 +68,35 @@ struct LightChainPrimaryCard: View {
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 93/255, green: 140/255, blue: 141/255),
-                            Color(red: 80/255, green: 122/255, blue: 123/255)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+            RoundedRectangle(cornerRadius: DaylightRadius.xl, style: .continuous)
+                .fill(DaylightGradients.cardPrimary)
         )
-    }
-
-    private var cardText: Color {
-        Color(red: 255/255, green: 236/255, blue: 173/255)
     }
 
     private func streakBlock(value: Int, label: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .lastTextBaseline, spacing: 8) {
                 Text("\(value)")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundColor(cardText)
+                    .font(DaylightTypography.streakNumber)
+                    .foregroundColor(DaylightColors.glowGold)
                 Text(NSLocalizedString("lightchain.card.days", comment: "Days suffix"))
-                    .font(.system(size: 20, weight: .regular))
-                    .foregroundColor(cardText.opacity(0.9))
+                    .font(DaylightTypography.subhead)
+                    .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
             }
             Text(label)
-                .font(.system(size: 19, weight: .regular))
-                .foregroundColor(cardText.opacity(0.9))
+                .font(DaylightTypography.bodyLarge)
+                .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
         }
     }
 
     private func lampStyle(for record: DayRecord) -> (color: Color, glow: Color, glowRadius: CGFloat) {
         if record.dayLightStatus == .on && record.nightLightStatus == .on {
-            let color = cardText
-            return (color, color.opacity(0.35), 6)
+            return (DaylightColors.glowGold, DaylightColors.glowGold(opacity: 0.35), 6)
         }
         if record.dayLightStatus == .on {
-            let color = cardText.opacity(0.5)
-            return (color, color.opacity(0.2), 4)
+            return (DaylightColors.glowGold(opacity: 0.5), DaylightColors.glowGold(opacity: 0.2), 4)
         }
-        return (cardText.opacity(0.25), Color.clear, 0)
+        return (DaylightColors.glowGold(opacity: 0.25), Color.clear, 0)
     }
 }
 
@@ -141,28 +126,28 @@ struct LightChainStreakCalendarCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(NSLocalizedString("lightchain.card.calendar.title", comment: "Streak calendar title"))
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(cardText)
+                .font(DaylightTypography.headline)
+                .foregroundColor(DaylightColors.glowGold)
 
             HStack(spacing: 12) {
                 Button { changeMonth(by: -1) } label: {
                     Image(systemName: "chevron.left")
-                        .foregroundColor(cardText.opacity(0.9))
+                        .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
                         .padding(8)
-                        .background(cardText.opacity(0.1))
+                        .background(DaylightColors.glowGold(opacity: 0.1))
                         .clipShape(Circle())
                 }
                 Spacer(minLength: 12)
                 Text(monthTitle(month))
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(cardText.opacity(0.92))
+                    .font(DaylightTypography.body2Medium)
+                    .foregroundColor(DaylightColors.glowGold.opacity(0.92))
                     .padding(.horizontal, 10)
                 Spacer(minLength: 12)
                 Button { changeMonth(by: 1) } label: {
                     Image(systemName: "chevron.right")
-                        .foregroundColor(cardText.opacity(0.9))
+                        .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
                         .padding(8)
-                        .background(cardText.opacity(0.1))
+                        .background(DaylightColors.glowGold(opacity: 0.1))
                         .clipShape(Circle())
                 }
             }
@@ -175,27 +160,14 @@ struct LightChainStreakCalendarCard: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 70/255, green: 112/255, blue: 112/255),
-                            Color(red: 55/255, green: 93/255, blue: 93/255)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+            RoundedRectangle(cornerRadius: DaylightRadius.lg, style: .continuous)
+                .fill(DaylightGradients.cardCalendarDark)
         )
         .onChange(of: externalMonth) { _, newValue in
             if !Calendar.current.isDate(newValue, equalTo: month, toGranularity: .month) {
                 month = newValue
             }
         }
-    }
-
-    private var cardText: Color {
-        Color(red: 255/255, green: 236/255, blue: 173/255)
     }
 
     private var calendar: Calendar {
@@ -209,8 +181,8 @@ struct LightChainStreakCalendarCard: View {
         return HStack(spacing: 8) {
             ForEach(symbols, id: \.self) { day in
                 Text(day)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(cardText.opacity(0.9))
+                    .font(DaylightTypography.caption1)
+                    .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -240,13 +212,13 @@ struct LightChainStreakCalendarCard: View {
             onSelect(record)
         } label: {
             Text(cell.dayString)
-                .font(.system(size: 15, weight: .semibold))
+                .font(DaylightTypography.footnoteSemibold)
                 .foregroundColor(style.text)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(
                     Circle()
-                        .strokeBorder(cardText.opacity(isSelected ? 0.8 : 0), lineWidth: 2)
+                        .strokeBorder(DaylightColors.glowGold.opacity(isSelected ? 0.8 : 0), lineWidth: 2)
                         .background(
                             Circle()
                                 .fill(style.background)
@@ -260,16 +232,16 @@ struct LightChainStreakCalendarCard: View {
     }
 
     private func dayStyle(for record: DayRecord?) -> (background: Color, text: Color, glow: Color, glowRadius: CGFloat) {
-        let offBackground = Color.white.opacity(0.15)
-        let offText = cardText.opacity(0.65)
+        let offBackground = DaylightColors.bgOverlay15
+        let offText = DaylightColors.glowGold(opacity: 0.65)
         guard let record = record else {
             return (offBackground, offText, Color.clear, 0)
         }
         if record.dayLightStatus == .on && record.nightLightStatus == .on {
-            return (cardText, Color(red: 50/255, green: 75/255, blue: 75/255), cardText.opacity(0.45), 10)
+            return (DaylightColors.glowGold, DaylightColors.textOnGlow, DaylightColors.glowGold(opacity: 0.45), 10)
         }
         if record.dayLightStatus == .on {
-            return (cardText.opacity(0.35), Color.white.opacity(0.92), cardText.opacity(0.2), 6)
+            return (DaylightColors.glowGold(opacity: 0.35), Color.white.opacity(0.92), DaylightColors.glowGold(opacity: 0.2), 6)
         }
         return (offBackground, offText, Color.clear, 0)
     }
@@ -438,48 +410,45 @@ struct DayRecordStatusCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(formattedDate(record.date))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.8))
+                .font(DaylightTypography.caption1Medium)
+                .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
             Text(title(for: status))
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(Color(red: 255/255, green: 236/255, blue: 173/255))
+                .font(DaylightTypography.headline)
+                .foregroundColor(DaylightColors.glowGold)
             Text(description(for: status))
-                .font(.system(size: 15))
+                .font(DaylightTypography.footnote)
                 .foregroundColor(.white.opacity(0.85))
 
             if !isFuture {
                 if status != .off {
                     Text(commitmentLine())
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(DaylightTypography.footnoteMedium)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
                         .lineLimit(3)
                 } else {
                     Text(NSLocalizedString("record.card.commitment.empty", comment: "No commitment"))
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(DaylightTypography.footnote)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                 }
 
                 if let sleep = sleepLine() {
                     Text(sleep)
-                        .font(.system(size: 15))
+                        .font(DaylightTypography.footnote)
                         .foregroundColor(.white.opacity(0.85))
                 }
 
                 if let reject = rejectLine() {
                     Text(reject)
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(DaylightTypography.footnote)
+                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
                 }
             }
         }
         .padding(20)
         .frame(maxWidth: 360, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(LinearGradient(colors: [
-                    Color(red: 34/255, green: 61/255, blue: 68/255),
-                    Color(red: 22/255, green: 44/255, blue: 54/255)
-                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: DaylightRadius.md, style: .continuous)
+                .fill(DaylightGradients.cardDetail)
                 .shadow(color: Color.black.opacity(0.25), radius: 18, x: 0, y: 10)
         )
         .padding(.horizontal, 24)
