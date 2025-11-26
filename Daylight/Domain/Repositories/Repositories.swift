@@ -7,10 +7,10 @@ protocol UserRepository {
 }
 
 protocol DayRecordRepository {
-    func record(for localDate: String) async throws -> DayRecord?
-    func upsert(_ record: DayRecord) async throws
-    func records(in range: ClosedRange<String>) async throws -> [DayRecord]
-    func latestRecords(limit: Int) async throws -> [DayRecord]
+    func record(for localDate: String, userId: String) async throws -> DayRecord?
+    func upsert(_ record: DayRecord, userId: String) async throws
+    func records(in range: ClosedRange<String>, userId: String) async throws -> [DayRecord]
+    func latestRecords(limit: Int, userId: String) async throws -> [DayRecord]
 }
 
 protocol SettingsRepository {

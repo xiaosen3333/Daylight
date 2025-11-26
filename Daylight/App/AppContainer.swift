@@ -1,12 +1,16 @@
 import Foundation
 import SwiftUI
 import Combine
+import Network
 
 @MainActor
 final class AppContainer: ObservableObject {
     @Published var todayViewModel: TodayViewModel?
     @Published var errorMessage: String?
     private let configuration: AppConfiguration
+    private var syncReplayer: SyncReplayer?
+    private var pathMonitor: NWPathMonitor?
+    private let monitorQueue = DispatchQueue(label: "daylight.network.monitor")
 
     init(configuration: AppConfiguration = .load()) {
         self.configuration = configuration
@@ -34,7 +38,8 @@ final class AppContainer: ObservableObject {
                 let user = try await userRepository.currentUser()
 
                 let dayRecordRepository = DayRecordRepositoryImpl(local: dayLocal, pending: pendingLocal, remote: remote)
-                let settingsRepository = SettingsRepositoryImpl(local: settingsLocal, remote: remote, userId: user.id)
+                let settingsRepository = SettingsRepositoryImpl(local: settingsLocal, pending: pendingLocal, remote: remote, userId: user.id)
+                let syncReplayer = SyncReplayer(pending: pendingLocal, remote: remote)
 
                 let loadToday = LoadTodayStateUseCase(dayRecordRepository: dayRecordRepository,
                                                       settingsRepository: settingsRepository,
@@ -43,7 +48,7 @@ final class AppContainer: ObservableObject {
                 let confirmSleep = ConfirmSleepUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let rejectNight = RejectNightUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let loadLightChain = LoadLightChainUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
-                let streak = GetStreakUseCase(dayRecordRepository: dayRecordRepository)
+                let streak = GetStreakUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let updateSettings = UpdateSettingsUseCase(settingsRepository: settingsRepository)
                 let loadMonth = LoadMonthRecordsUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let scheduler = NotificationScheduler()
@@ -59,14 +64,50 @@ final class AppContainer: ObservableObject {
                     updateSettings: updateSettings,
                     loadMonth: loadMonth,
                     dateHelper: dateHelper,
-                    notificationScheduler: scheduler
+                    notificationScheduler: scheduler,
+                    syncReplayer: syncReplayer
                 )
 
                 self.todayViewModel = viewModel
+                self.syncReplayer = syncReplayer
+                self.startNetworkMonitor(with: syncReplayer)
+                replayAndUpdate(reason: .appLaunch)
                 self.errorMessage = nil
             } catch {
                 self.errorMessage = error.localizedDescription
             }
         }
+    }
+
+    func scenePhaseChanged(_ phase: ScenePhase) {
+        guard phase == .active else { return }
+        replayAndUpdate(reason: .foreground)
+    }
+
+    private func startNetworkMonitor(with replayer: SyncReplayer) {
+        guard pathMonitor == nil else { return }
+        let monitor = NWPathMonitor()
+        pathMonitor = monitor
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor [weak self] in
+                self?.replayAndUpdate(reason: .networkBack)
+            }
+        }
+        monitor.start(queue: monitorQueue)
+    }
+
+    private func replayAndUpdate(reason: SyncReplayer.ReplayReason, force: Bool = false, types: Set<PendingSyncItem.ItemType>? = nil) {
+        guard let replayer = syncReplayer else { return }
+        Task {
+            let snapshot = await replayer.replay(reason: reason, force: force, types: types)
+            await MainActor.run {
+                self.todayViewModel?.applySyncSnapshot(snapshot)
+            }
+        }
+    }
+
+    deinit {
+        pathMonitor?.cancel()
     }
 }

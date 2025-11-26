@@ -22,7 +22,7 @@ struct LightChainPage: View {
                         records: viewModel.monthRecords,
                         month: currentMonth,
                         locale: viewModel.locale,
-                        initialSelection: selectedRecord?.date ?? viewModel.dateHelper.dayFormatter.string(from: Date()),
+                        initialSelection: selectedRecord?.date ?? viewModel.todayKey(),
                         onSelect: { record in
                             selectedRecord = record
                         },
@@ -36,7 +36,7 @@ struct LightChainPage: View {
                             record: record,
                             locale: viewModel.locale,
                             timeZone: viewModel.dateHelper.timeZone,
-                            todayKey: viewModel.dateHelper.dayFormatter.string(from: Date())
+                            todayKey: viewModel.todayKey()
                         )
                     }
                     mainPanel
@@ -329,12 +329,15 @@ struct LightChainPage: View {
     }
 
     private func loadMonthData(month: Date? = nil) async {
-        if let month = month {
-            currentMonth = month
+        let effectiveToday = viewModel.todayDate()
+        var targetMonth = month ?? currentMonth
+        if month == nil && !calendar.isDate(effectiveToday, equalTo: targetMonth, toGranularity: .month) {
+            targetMonth = effectiveToday
         }
+        currentMonth = targetMonth
         isLoadingMonth = true
-        await viewModel.loadMonth(currentMonth)
-        let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
+        await viewModel.loadMonth(targetMonth)
+        let todayKey = viewModel.todayKey(for: effectiveToday)
         if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {

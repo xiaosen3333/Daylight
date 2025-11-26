@@ -50,6 +50,25 @@ struct DaylightDateHelper {
         return dayFormatter.string(from: baseDate)
     }
 
+    func nextLocalDayBoundary(after date: Date = Date(), nightWindow: NightWindow) -> Date {
+        var calendar = calendar
+        calendar.timeZone = timeZone
+
+        let endMinutes = minutes(for: nightWindow.end) + 1
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let candidate = calendar.date(byAdding: .minute, value: endMinutes, to: startOfDay) else {
+            return date
+        }
+        if date < candidate {
+            return candidate
+        }
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay),
+              let next = calendar.date(byAdding: .minute, value: endMinutes, to: tomorrow) else {
+            return candidate
+        }
+        return next
+    }
+
     var dayFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.calendar = calendar

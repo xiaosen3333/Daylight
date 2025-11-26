@@ -181,7 +181,7 @@ struct MockDataSeeder {
         do {
             try await userLocal.save(user: domain.user)
             try await settingsLocal.save(domain.settings)
-            try await dayRecordLocal.save(records: domain.records)
+            try await dayRecordLocal.save(records: domain.records, for: domain.user.id)
         } catch {
             print("[MockDataSeeder] seeding failed: \(error)")
         }

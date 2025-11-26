@@ -5,6 +5,7 @@ import UIKit
 struct TodayView: View {
     @StateObject var viewModel: TodayViewModel
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showDayPage = false
     @State private var showNightPage = false
     @State private var showSettingsPage = false
@@ -140,6 +141,15 @@ struct TodayView: View {
             } message: {
                 Text(NSLocalizedString("notification.permission.body", comment: ""))
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                Task {
+                    _ = await viewModel.refreshIfNeeded(trigger: .foreground, includeMonth: showStats)
+                    if showStats {
+                        await loadStatsData(month: viewModel.todayDate())
+                    }
+                }
+            }
         }
     }
 
@@ -238,7 +248,7 @@ struct TodayView: View {
             userId: viewModel.currentUserId ?? "",
             locale: viewModel.locale,
             timeZone: viewModel.dateHelper.timeZone,
-            todayKey: viewModel.dateHelper.dayFormatter.string(from: Date()),
+            todayKey: viewModel.todayKey(),
             onMonthChange: { newMonth in
                 currentMonth = newMonth
                 Task { await loadStatsData(month: newMonth) }
@@ -323,12 +333,17 @@ struct TodayView: View {
     }
 
     private func loadStatsData(month: Date? = nil) async {
-        if let month = month {
-            currentMonth = month
+        let effectiveToday = viewModel.todayDate()
+        var calendar = viewModel.dateHelper.calendar
+        calendar.timeZone = viewModel.dateHelper.timeZone
+        var targetMonth = month ?? currentMonth
+        if month == nil && !calendar.isDate(effectiveToday, equalTo: targetMonth, toGranularity: .month) {
+            targetMonth = effectiveToday
         }
+        currentMonth = targetMonth
         isLoadingStats = true
-        await viewModel.loadMonth(currentMonth)
-        let todayKey = viewModel.dateHelper.dayFormatter.string(from: Date())
+        await viewModel.loadMonth(targetMonth)
+        let todayKey = viewModel.todayKey(for: effectiveToday)
         if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
@@ -397,10 +412,7 @@ struct TodayView: View {
     }
 
     private var showSleepCTA: Bool {
-        guard let record = viewModel.state.record,
-              let settings = viewModel.state.settings else { return false }
-        guard record.dayLightStatus == .on, record.nightLightStatus == .off else { return false }
-        return isInExtendedNightWindow(settings: settings)
+        viewModel.shouldShowNightCTA()
     }
 
     private var sleepCTAButton: some View {
@@ -426,28 +438,6 @@ struct TodayView: View {
         case .dayOnly:
             return NSLocalizedString("home.button.day", comment: "")
         }
-    }
-
-    private func isInExtendedNightWindow(settings: Settings, now: Date = Date()) -> Bool {
-        let startMinutes = minutes(from: settings.nightReminderStart)
-        let endMinutes = 5 * 60 // 05:00 next day
-
-        var calendar = viewModel.dateHelper.calendar
-        calendar.timeZone = viewModel.dateHelper.timeZone
-        let components = calendar.dateComponents(in: viewModel.dateHelper.timeZone, from: now)
-        guard let hour = components.hour, let minute = components.minute else { return false }
-        let currentMinutes = hour * 60 + minute
-
-        // Night window spans across midnight: start -> 24:00 plus 00:00 -> 05:00
-        return currentMinutes >= startMinutes || currentMinutes < endMinutes
-    }
-
-    private func minutes(from time: String) -> Int {
-        let parts = time.split(separator: ":")
-        guard parts.count == 2,
-              let hour = Int(parts[0]),
-              let minute = Int(parts[1]) else { return 0 }
-        return hour * 60 + minute
     }
 
     private var homeTitle: String {
@@ -627,15 +617,6 @@ struct DayCommitmentPage: View {
                 .padding(.top, 8)
 
                 Spacer()
-
-                HStack(spacing: 18) {
-                    ForEach(0..<5) { index in
-                        Circle()
-                            .fill(index < 4 ? Color(red: 255/255, green: 236/255, blue: 173/255) : Color.white.opacity(0.3))
-                            .frame(width: 16, height: 16)
-                    }
-                }
-                .padding(.bottom, 28)
             }
             .padding(.horizontal, 32)
             .onAppear {

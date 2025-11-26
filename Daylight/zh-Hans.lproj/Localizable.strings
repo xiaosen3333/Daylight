@@ -85,8 +85,8 @@
 "settings.reminder.section" = "提醒设置";
 "settings.day.time" = "白昼提醒时间";
 "settings.night.enable" = "开启夜间提醒";
-"settings.night.start" = "夜间开始";
-"settings.night.end" = "夜间结束";
+"settings.night.start" = "最早入睡时间";
+"settings.night.end" = "最晚入睡时间";
 "settings.night.interval" = "夜间提醒间隔";
 "settings.language.section" = "语言";
 "settings.language.system" = "跟随系统";
@@ -97,6 +97,12 @@
 "settings.profile.section" = "个人";
 "settings.profile.nickname" = "昵称";
 "settings.profile.nickname.placeholder" = "填个昵称，提醒时会更温柔";
+"settings.sync.synced" = "已同步到云端";
+"settings.sync.pending" = "本地已保存，待网络恢复自动重试";
+"settings.sync.failed" = "设置未能上传";
+"settings.sync.syncing" = "正在同步设置";
+"settings.sync.retry" = "立即重试";
+"settings.sync.nextRetry" = "下次重试";
 
 "lightchain.title" = "灯链";
 "lightchain.subtitle" = "让你的光，一天比一天亮一点。";

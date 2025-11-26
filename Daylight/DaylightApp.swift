@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct DaylightApp: App {
     @StateObject private var container = AppContainer()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         ForegroundNotificationDelegate.shared.activate()
@@ -49,6 +50,9 @@ struct DaylightApp: App {
                 }
             }
             .onAppear { container.bootstrap() }
+            .onChange(of: scenePhase) { _, newPhase in
+                container.scenePhaseChanged(newPhase)
+            }
         }
     }
 }

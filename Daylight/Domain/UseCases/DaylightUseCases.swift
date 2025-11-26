@@ -29,12 +29,12 @@ final class LoadTodayStateUseCase {
             nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
         )
 
-        if let record = try await dayRecordRepository.record(for: dateString) {
+        if let record = try await dayRecordRepository.record(for: dateString, userId: userId) {
             return TodayState(record: record, settings: settings)
         }
 
         let newRecord = defaultRecord(for: userId, date: dateString)
-        try? await dayRecordRepository.upsert(newRecord)
+        try? await dayRecordRepository.upsert(newRecord, userId: userId)
         return TodayState(record: newRecord, settings: settings)
     }
 }
@@ -58,13 +58,13 @@ final class SetDayCommitmentUseCase {
         }
 
         let dateString = dateHelper.localDayString(nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
-        var record = try await dayRecordRepository.record(for: dateString) ?? defaultRecord(for: userId, date: dateString)
+        var record = try await dayRecordRepository.record(for: dateString, userId: userId) ?? defaultRecord(for: userId, date: dateString)
 
         record.commitmentText = trimmed
         record.dayLightStatus = .on
         record.updatedAt = Date()
         record.version += 1
-        try await dayRecordRepository.upsert(record)
+        try await dayRecordRepository.upsert(record, userId: userId)
         return record
     }
 }
@@ -80,7 +80,7 @@ final class ConfirmSleepUseCase {
 
     func execute(userId: String, settings: Settings) async throws -> DayRecord {
         let dateString = dateHelper.localDayString(nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
-        guard var record = try await dayRecordRepository.record(for: dateString) else {
+        guard var record = try await dayRecordRepository.record(for: dateString, userId: userId) else {
             throw DomainError.notFound
         }
 
@@ -95,7 +95,7 @@ final class ConfirmSleepUseCase {
         record.sleepConfirmedAt = now
         record.updatedAt = now
         record.version += 1
-        try await dayRecordRepository.upsert(record)
+        try await dayRecordRepository.upsert(record, userId: userId)
         return record
     }
 }
@@ -111,7 +111,7 @@ final class RejectNightUseCase {
 
     func execute(userId: String, settings: Settings) async throws -> DayRecord {
         let dateString = dateHelper.localDayString(nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
-        guard var record = try await dayRecordRepository.record(for: dateString) else {
+        guard var record = try await dayRecordRepository.record(for: dateString, userId: userId) else {
             throw DomainError.notFound
         }
         guard record.dayLightStatus == .on else {
@@ -123,7 +123,7 @@ final class RejectNightUseCase {
         record.nightRejectCount += 1
         record.updatedAt = Date()
         record.version += 1
-        try await dayRecordRepository.upsert(record)
+        try await dayRecordRepository.upsert(record, userId: userId)
         return record
     }
 }
@@ -142,7 +142,7 @@ final class LoadLightChainUseCase {
         let sortedDates = targetDates.sorted()
         guard let first = sortedDates.first, let last = sortedDates.last else { return [] }
 
-        let existing = try await dayRecordRepository.records(in: first...last)
+        let existing = try await dayRecordRepository.records(in: first...last, userId: userId)
         let map = Dictionary(uniqueKeysWithValues: existing.map { ($0.date, $0) })
         var results: [DayRecord] = []
         for date in sortedDates {
@@ -173,37 +173,74 @@ final class LoadLightChainUseCase {
 
 final class GetStreakUseCase {
     private let dayRecordRepository: DayRecordRepository
-
-    init(dayRecordRepository: DayRecordRepository) {
-        self.dayRecordRepository = dayRecordRepository
+    private let dateHelper: DaylightDateHelper
+    private var calendar: Calendar {
+        var cal = dateHelper.calendar
+        cal.timeZone = dateHelper.timeZone
+        return cal
     }
 
-    func execute() async throws -> StreakResult {
-        let records = try await dayRecordRepository.latestRecords(limit: 60).sorted { $0.date < $1.date }
-        var current = 0
-        var longest = 0
+    init(dayRecordRepository: DayRecordRepository,
+         dateHelper: DaylightDateHelper) {
+        self.dayRecordRepository = dayRecordRepository
+        self.dateHelper = dateHelper
+    }
+
+    func execute(userId: String) async throws -> StreakResult {
+        let records = try await dayRecordRepository.latestRecords(limit: 60, userId: userId).sorted { $0.date < $1.date }
+        let current = computeCurrent(records: records)
+        let longest = max(current, computeLongest(records: records))
+        return StreakResult(current: current, longest: longest)
+    }
+
+    private func computeCurrent(records: [DayRecord]) -> Int {
+        var streak = 0
+        var lastDate: Date?
         for record in records.reversed() {
+            guard let day = dateHelper.dayFormatter.date(from: record.date) else { continue }
             if record.dayLightStatus == .on && record.nightLightStatus == .on {
-                current += 1
-                longest = max(longest, current)
-            } else if current > 0 {
-                break
+                if let previous = lastDate,
+                   let expected = calendar.date(byAdding: .day, value: -1, to: previous),
+                   !calendar.isDate(day, equalTo: expected, toGranularity: .day) {
+                    break
+                }
+                streak += 1
+                lastDate = day
+            } else {
+                if streak > 0 { break }
+                lastDate = nil
             }
         }
-        longest = max(longest, computeLongest(records: records))
-        return StreakResult(current: current, longest: longest)
+        return streak
     }
 
     private func computeLongest(records: [DayRecord]) -> Int {
         var longest = 0
         var streak = 0
+        var previousComplete: Date?
         for record in records {
-            if record.dayLightStatus == .on && record.nightLightStatus == .on {
-                streak += 1
-                longest = max(longest, streak)
-            } else {
+            guard let day = dateHelper.dayFormatter.date(from: record.date) else {
+                previousComplete = nil
                 streak = 0
+                continue
             }
+
+            guard record.dayLightStatus == .on && record.nightLightStatus == .on else {
+                previousComplete = nil
+                streak = 0
+                continue
+            }
+
+            if let previous = previousComplete,
+               let expected = calendar.date(byAdding: .day, value: 1, to: previous),
+               calendar.isDate(day, equalTo: expected, toGranularity: .day) {
+                streak += 1
+            } else {
+                streak = 1
+            }
+
+            longest = max(longest, streak)
+            previousComplete = day
         }
         return longest
     }
@@ -242,7 +279,7 @@ final class LoadMonthRecordsUseCase {
 
         let startString = dateHelper.dayFormatter.string(from: startOfMonth)
         let endString = dateHelper.dayFormatter.string(from: endOfMonth)
-        let recordsInRange = try await dayRecordRepository.records(in: startString...endString)
+        let recordsInRange = try await dayRecordRepository.records(in: startString...endString, userId: userId)
         let recordMap = Dictionary(uniqueKeysWithValues: recordsInRange.map { ($0.date, $0) })
 
         var results: [DayRecord] = []

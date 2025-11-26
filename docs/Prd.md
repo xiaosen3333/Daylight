@@ -1,5 +1,299 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.1.8）
+- 目的：设置页保存与通知重排节流，拖动/输入不再频繁写文件或重复授权；昵称仅在确认/失焦时提交。
+- 范围：`SettingsPage` 视图层的保存触发与昵称提交逻辑；底层 ViewModel/通知排程/其他模块不变。
+- 影响面：日/夜提醒时间、夜间开关、间隔、承诺展示、昵称的保存频率；同步状态条、语言/开发工具、其他页面/数据契约均保持不变。
+- 验收要点：连续拖动时间/Picker/Toggle 仅在停顿 ~400ms 后触发一次 `saveSettings` 与通知重排；昵称输入时不触发写入，按键盘完成或失焦才提交且仅在变更时调用；无额外授权弹窗或跨模块回归。
+
+### ASCII 原型（设置页受影响区域）
+```
++------------------------------------------------------+
+| Settings                                             |
+| [● Synced · Next retry HH:MM]                        |
+|                                                      |
+| Profile                                              |
+|  Nickname: [ Zora                 ][Done]            |
+|  hint: auto-saves on Done or when the field blurs    |
+|                                                      |
+| Reminder                                             |
+|  Day time      [ 08:00 ]                             |
+|  Night mode    [ on/off toggle ]                     |
+|  Night start   [ 23:00 ]    Night end   [ 07:00 ]    |
+|  Interval      [ 30 min ▼ ]                          |
+|  Show intention in notification [ toggle ]           |
+|                                                      |
+| Language  [ System | 中文 | English ]                |
+| Dev tools ...                                        |
++------------------------------------------------------+
+```
+
+### ASCII 原型（交互与节流）
+```
+User changes picker/toggle
+        ↓
+ settingsForm @State (Equatable snapshot)
+        ↓ onChange
+ PassthroughSubject.send(form)
+        ↓ debounce(for: 0.4s, scheduler: main)
+ DebouncedSettingsSaver.fire(form)
+        ↓
+ viewModel.saveSettings(...)  // single call after idle
+        ↓
+ repo -> file write + notification scheduling (unchanged)
+```
+
+### ASCII 原型（昵称提交流）
+```
+TextField(nickname, submitLabel: .done)
+    ↓ onSubmit OR onChange of isNicknameFocused to false
+commitNicknameIfChanged()
+    ↓
+viewModel.updateNickname(newName)  // only when value changed
+```
+
+### 技术架构与要点更新
+- 保存节流：引入 `DebouncedSettingsSaver`（私有于 SettingsPage），汇聚 `settingsForm` 变更到 `PassthroughSubject`，`removeDuplicates` + `debounce(400ms)` 后统一调用 `saveSettings`。
+- 监听简化：六个 `.onChange` 合并为单个 `settingsForm` 监听，视图状态组装成 `Equatable` 结构体避免重复触发。
+- 昵称提交：增加 `@FocusState` 与 `lastCommittedNickname`，`.submitLabel(.done)` + 失焦触发 `commitNicknameIfChanged`，仅在值变更时调用 `updateNickname`。
+- 同步保护：`syncWithSettings` 初始化时同步 `lastCommittedNickname`，`didLoad` 前的变更不触发提交；不改 ViewModel 接口与通知/存储模块，回归风险限定在设置页。
+
+## 新版本更新（1.1.7）
+- 目的：夜间提醒次数随时间窗与间隔动态生成，跨日窗口不截断；授权弹窗仅在首次/未授权时出现，重排程不再重复弹窗。
+- 范围：`NotificationScheduler` 夜间排程逻辑与授权流程；新增夜间时间生成器与 ID 清理；其他模块不变。
+- 影响面：夜间通知触发次数与时间；授权触发时机；日间提醒与 UI/数据用例保持不变。
+- 验收要点：22:00–02:00 间隔 20 分钟应排程 13 条 pending 请求（跨日触发完整）；start=end 只排一次；night interval<=0 不排程；多次 reschedule 不弹授权；`clearNightReminders` 能清掉旧版 ID。
+
+### ASCII 原型（夜间时间线示例）
+```
+夜间窗口：22:00–02:00，间隔 20m
+22:00 22:20 22:40 23:00 23:20 23:40 00:00 00:20 00:40 01:00 01:20 01:40 02:00
+|----|----|----|----|----|----|----|----|----|----|----|----|----|  共 13 次
+```
+
+### ASCII 原型（排程/授权解耦流程）
+```
+[App 启动/设置变更]
+   |-- ensureAuthorization()   // 仅在未决时弹窗
+   |
+   |-- reschedule(settings, dayKey, nextDayKey, context)  // 不再触发授权
+          |- clearLegacyRequests()
+          |- clearStoredRequests()
+          |- scheduleDaily(dayKey):
+                * buildDayRequest()
+                * times = nightReminderTimes(start,end,interval)
+                * for t in times: buildNightRequest(round: idx+1)
+          |- saveScheduled(ids, dayKey)
+```
+
+### 技术架构与要点更新
+- 夜间触发生成器：`nightReminderTimes(start,end,interval)` 根据窗口长度 + 间隔推算全部分钟数，跨日取模 24h；间隔<=0 返回空；start=end 仅保留起点。
+- 动态 ID：`daylight_night_<dayKey>_<roundIdx>` 与轮次绑定，`makeNightContent` round==1 用第一套文案，round>=2 复用第二套；`clearRequests(for:)` 通过前缀查找 pending 全量清理。
+- 授权解耦：新增 `ensureAuthorization()`，仅 `.notDetermined` 时调用 `requestAuthorization`；`reschedule` 使用 `notificationsEnabled()` 早退，避免重复弹窗。
+- 兼容与清理：保留 `legacyNightReminderIds` 清除旧版；`saveScheduled` 存储实际生成的 ID 供后续清理，日间提醒逻辑不变。
+
+## 新版本更新（1.1.6）
+- 目的：为待同步队列补齐出站重放与退避，避免 `pending_ops.json` 无上限增长；设置上传失败可见且可手动重试（UI 暂隐藏，待真实云端接入后再显）。
+- 范围：PendingSync 支持 DayRecord + Settings；Repository 入队/成功出队/失败退避；新增 SyncReplayer（启动/前台/网络恢复/手动重试触发）；设置页同步状态条代码已就绪但默认隐藏。
+- 影响面：本地写入、通知排程与其他页面不变；仅影响待同步文件与设置同步逻辑；队列限定 200 条、同 ID 覆盖。
+- 验收要点：离线修改设置/日迹会入 `pending_ops.json`；前台/网络恢复后自动上传并删除；手动“立即重试”调用后可触发上传；退避节奏 5s 起指数递增、封顶 10 分钟，无爆刷。
+
+### ASCII 原型（同步流）
+```
+[TodayViewModel/UseCases] --save--> [DayRecordRepo / SettingsRepo]
+           |                         | on failure
+           |                         v
+           |                 [PendingSyncLocalDataSource]
+           |                         |
+           |<---status banner--------+
+           |
+[AppContainer] starts SyncReplayer (actor)
+           |
+   triggers: app launch, scenePhase .active,
+             NWPathMonitor 网络恢复，手动 Retry
+           v
+   SyncReplayer loads pending_ops.json
+           |
+   batch by type -> remote.upload(...)
+           |
+   success -> removePending(id)
+   failure -> retryCount +=1, lastTryAt=now, backoff (min(2^n*5s, 10m))
+```
+
+### ASCII 原型（设置页顶部状态，当前隐藏，待云端接入后放出）
+```
++--------------------------------------------------------------+
+| Settings                                                     |
+| [SYNC STATUS BAR - hidden by default until live backend]     |
+|  - OK: "已同步到云端"                                         |
+|  - Pending/failed: "本地已保存，待网络恢复自动重试" [Retry]   |
++--------------------------------------------------------------+
+| Day reminder time   [08:00 ▾]                                |
+| Night enable        [ON ]                                    |
+| Night window        [23:00 - 07:00]                          |
+| Night interval      [30 min ▾]                               |
+| Show commitment     [ON ]                                    |
++--------------------------------------------------------------+
+```
+
+### 技术架构与要点更新
+- PendingSyncItem.payload 改为枚举（dayRecord/settings），id 由 type + payloadId 生成，队列上限 200 条，重复 ID 覆盖。
+- DayRecord/Settings Repository：本地成功写入后，远端成功即出队，失败时入队（retryCount 递增，lastTryAt=now），Settings 失败抛 syncFailure 供 UI 提示。
+- SyncReplayer（actor）：读 pending_ops.json，按类型批量上传（DayRecord 成批，Settings 单个），失败写回并计算退避；支持 filters + force（手动重试跳过退避）；App 启动/前台/网络恢复触发。
+- AppContainer：持有 SyncReplayer，场景变化/NWPathMonitor 恢复时触发 replay，并回传 Snapshot 更新 VM 状态。
+- TodayViewModel + SettingsPage：新增 settingsSyncState（idle/syncing/pending/failed/synced），同步失败不弹阻断框，顶部状态条显示下一次重试时间并提供“立即重试”。
+
+## 新版本更新（1.1.5）
+- 目的：日迹查询与写入强制按 `userId` 隔离，为多账号/多设备场景消除串读/误写风险。
+- 范围：`DayRecordRepository` / `DayRecordLocalDataSource` API 全量改为带 `userId`；调用链（Today/LightChain/Streak/Month 用例与 VM）传递并过滤；持久化过滤 `loadAll(for:)`，写入校验 `record.userId`。
+- 影响面：今日状态、灯链、连击、月历、通知排程读取的日迹均按当前用户过滤；待同步队列继续写入同一记录 ID（含 userId），不影响其他模块。
+- 验收要点：切换/模拟不同 `userId` 仅能读到自身日迹；插入其他用户记录不会出现在当前用户 UI/统计；旧单用户数据仍可读取（默认以当前用户 ID 过滤）。
+
+### ASCII 原型（userId 过滤数据流）
+```
+[ViewModel (userId)] -> [UseCases(userId)] -> [DayRecordRepositoryImpl]
+        |                                |
+        | record/records/latest/upsert   | loadAll(for:userId)
+        v                                v
+  UI 渲染/统计                    DayRecordLocalDataSource
+                                        |
+                                        | filter .userId == userId
+                                        v
+                             day_records.json (按 userId + date 合并/排序)
+```
+
+### 技术架构与要点更新
+- Repository 公共方法签名全部携带 `userId`，默认不再暴露无用户的查询/写入入口。
+- LocalDataSource 增加 `loadAll(for:)` 按 `userId` 过滤；写入前确保 `record.userId` 一致，仅覆盖同用户同日期记录，其他用户数据保留。
+- 连击/灯链/月视图用例依赖的批量读取改为 userId 限定；Mock 数据播种写入同一用户 ID，避免污染。
+- 数据契约不变（DayRecord 已含 userId 字段）；如需迁移旧数据，以当前登录用户 ID 作为默认过滤。
+
+## 新版本更新（1.1.4）
+- 目的：跨日后本地通知按“本地日”生成一次性内容，避免复用前一日承诺/昵称，夜窗跨日不再推送旧文案。
+- 范围：`NotificationScheduler` 一次性排程/ID 增加 dayKey + userInfo；`TodayViewModel` 前台/日切换重排，持久化 lastScheduledDayKey；沿用 `DateHelper.localDayString`。
+- 影响面：日/夜通知文案、deeplink、提醒触发时间；其他 UI/数据用例保持不变。
+- 验收要点：0:00 后收到的新提醒对应当日文案；夜窗跨日（例 22:30–04:00）凌晨提醒不带前一日承诺；前台唤醒自动重排，无重复/漏排。
+
+### ASCII 原型（通知排程）
+```
+[DateHelper.localDayString] --dayKey--> [TodayVM.scheduleNotifications]
+        | scenePhase/.timer             |
+        v                               v
+   dayKey check & refresh ----> [NotificationScheduler.scheduleDaily]
+                                        |
+                                        | one-shot requests (id=daylight_{day|night}_{dayKey})
+                                        v
+                       [UNUserNotificationCenter.pendingRequests]
+```
+
+### ASCII 时间线（跨日夜窗示例）
+```
+calendar day:    D             D+1
+clock:        00:00   04:00   12:00   23:00   02:00(next day)
+local dayKey=D |----属前一日----|----------当日-----------|--仍属dayKey=D--|
+                 ^ 重排D         ^ 日提醒D                ^ 夜1(D)         ^ 夜2(D)
+```
+
+### 技术架构与要点更新
+- 通知改为非重复：日/夜提醒使用当日 `UNCalendarNotificationTrigger(repeats:false)`，ID 带 dayKey，`userInfo` 附带 `dayKey` + `deeplink`。
+- 跨日校正：夜窗跨日时，`time <= nightEnd` 归属 dayKey 次日凌晨，其余归属 dayKey 当日；已过时刻不再补发。
+- 排程时机：`refreshAll`、跨日定时器、前台唤醒都会比对 dayKey 变化并重排；若 dayKey 未变但 `lastScheduledDayKey` 不一致，会重新排程。
+- 持久化：`UserDefaults` 记录 `lastScheduledDayKey` 与下发的 request IDs，重排前清理旧日/legacy ID，避免重复与误推。
+
+## 新版本更新（1.1.3）
+- 目的：跨日后主页/统计/通知自动切换到新日，消除午夜后停留在前一日数据的 UI/排程。
+- 范围：`TodayView` / `TodayViewModel` / `DateHelper`；仅新增跨日监听（前台+定时），复用现有用例与通知排程，不改数据契约。
+- 影响面：主页 CTA/标题、灯链、统计卡、通知重排程均基于新日记录；切日规则沿用 `localDayString(nightWindow:)`（00:00–夜窗结束视作前一日）。
+- 验收要点：午夜后 1 分钟内 UI/统计/通知切到新日；从后台回前台也能同步；白天场景无变化。
+
+### ASCII 原型（跨日自动刷新）
+```
+主屏（跨日后自动切换）
++----------------------------------------------------+
+| [⚙︎]  标题/副标题（绑定新日 record）              |
+| [白昼 CTA]  [夜间 CTA*]                            |
+| o o o o o o o   (灯链含新日占位/状态)              |
+| Stats 展开：月份=新日所在月，选中=新日             |
+| * 夜间 CTA 仅当白昼 ON 且夜窗内                    |
++----------------------------------------------------+
+
+跨日刷新流程
+[定时器 -> nextLocalDayBoundary] --\
+                                     > refreshIfNeeded -> refreshAll -> 通知重排程
+[scenePhase == active] ---------------/
+```
+
+### 技术架构与要点更新
+- DateHelper：新增 `nextLocalDayBoundary(after:nightWindow:)`，与 `localDayString` 同步切日（夜窗结束 + 1 分钟）。
+- TodayViewModel：记录 `lastDayKey`，`dayChangeTask` 睡眠到边界触发 `refreshIfNeeded`；前台唤醒/定时两路触发 `refreshAll`，切日后重排通知并在需要时刷新月度数据。
+- TodayView：监听 `scenePhase`，前台时触发 `refreshIfNeeded`，确保后台返回也更新。
+- 防重：`state.isLoading` + `dayChangeTask.cancel()` 避免重入；未改存储/用例/其他模块。
+
+## 新版本更新（1.1.2）
+- 目的：夜间窗口（默认 22:30–00:30）内的“今日”使用切日规则，消除 CTA/灯链/统计在 00:00–00:30 出现的错位。
+- 范围：`TodayView`、`LightChainPage` 及相关统计组件的 todayKey 生成与默认月份锚定；仅调整视图层取数，不改写底层用例/存储。
+- 影响面：主页 CTA、夜间守护入口、灯链圆点、月视图默认选中与 streak/状态卡展示；日夜写入逻辑与提醒排程保持不变。
+- 验收要点：夜窗内（如 00:10）UI 仍指向前一日记录，月视图落在前一日所在月份；白天与常规场景显示不变。
+
+### ASCII 原型（夜窗对齐的今日键）
+```
+Today（主屏，stats 收起）
++----------------------------------------------------+
+| [⚙︎]                                             |
+|            (glowing sun)                          |
+|  标题/副标题                                      |
+|  [今日行动 CTA]                                   |
+|  [夜间守护 CTA]  (夜窗内显示)                     |
+|  ●●●●●●●  LightChain  (todayKey=localDayString)  |
++----------------------------------------------------+
+
+Today（展开统计）
++----------------------------------------------------+
+| [<] 2024-03 [>]   (month == effectiveToday 月)     |
+| Su Mo Tu ...                                       |
+| ... .. **Td** .. ..                                |
+| Primary card  | streak                             |
+| DayRecordStatusCard(todayKey 传入)                 |
++----------------------------------------------------+
+
+LightChain Page
++----------------------------------------------------+
+| Primary card                                      |
+| Streak calendar (initialSelection=todayKey)       |
+| DayRecordStatusCard(todayKey)                     |
+| Sun card | Calendar card | Detail | Streak card   |
++----------------------------------------------------+
+```
+
+### 技术架构与要点更新
+- todayKey 统一入口：`TodayViewModel.todayKey/todayDate` 用 `dateHelper.localDayString(nightWindow:)`（无设置时回退自然日）。
+- 视图对齐：`TodayView` 统计卡、`LightChainPage` 初始选中/状态卡/loadMonth 默认都用 todayKey；月视图首次加载若跨月则锚定到有效今日所在月。
+- 数据契约/用例/存储保持不变；仅变更 key 计算与默认月度加载，确保夜窗跨日 UI 与数据一致。
+
+## 新版本更新（1.1.1）
+- 目的：修复灯链 streak 统计，缺失日期不再被计入连续天数，确保当前/最长连击与真实完成日期一致。
+- 范围：仅影响 `GetStreakUseCase` 计算逻辑与依赖注入（追加 `DaylightDateHelper` 以统一时区/日历），UI 及其他用例保持不变。
+- 影响面：灯链/主页 streak 数字（current/longest）；既有灯链渲染与提醒节奏不受影响；占位日依旧填充但不参与连击。
+
+### ASCII 原型（灯链/连击校验）
+```
+灯链（逆序用于 current）:
+11/03 ●●  -> 计数=1, last=11/03
+11/02 --  -> 断档，current 停止于 1
+11/01 ●●  -> 不连续，不加入 current；longest 仅按连续片段计算
+
+连击计算（升序用于 longest）:
+11/01 ●●  => streak=1, longest=1
+11/02 --  => reset=0
+11/03 ●●  => streak=1（重新开始），longest=1
+```
+
+### 技术架构与要点更新
+- `GetStreakUseCase` 注入 `DaylightDateHelper`；内部 `Calendar` 同步 `timeZone`，避免跨时区误差。
+- current 计算：逆序遍历，只有 `.on/.on` 且日期恰为上一日才累加；遇到缺失/未完成或日期跳变即停止。
+- longest 计算：升序遍历，连续日累加，不连续则从 1 重启；无效日期直接重置。
+- 数据契约/其他模块（提醒、灯链填充、存储）无改动，回归测试聚焦 streak 数字与边界日期（缺失日、逆序日期、跨夜窗口）。
+
 > 约束：当前 SwiftUI 已实现的三个页面（入口/白昼承诺/夜间守护）视觉效果需保持，仅在此基础上补强文案、提醒节奏与交互细节。
 
 ## 核心目标（Mission）

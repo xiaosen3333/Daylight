@@ -50,14 +50,6 @@ struct NightGuardPage: View {
 
                     Spacer()
 
-                    HStack(spacing: 18) {
-                        ForEach(0..<5) { index in
-                            Circle()
-                                .fill(index < 4 ? moonColor : Color.white.opacity(0.3))
-                                .frame(width: 16, height: 16)
-                        }
-                    }
-                    .padding(.bottom, 32)
                 }
                 .padding(.horizontal, 32)
             }

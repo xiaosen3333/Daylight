@@ -6,6 +6,8 @@ struct SettingsPage: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
+    @StateObject private var settingsSaver = DebouncedSettingsSaver()
+
     @State private var dayReminder: Date = Date()
     @State private var nightStart: Date = Date()
     @State private var nightEnd: Date = Date()
@@ -15,14 +17,29 @@ struct SettingsPage: View {
     @State private var nickname: String = ""
     @State private var didLoad = false
     @State private var didSyncInitial = false
+    @State private var lastCommittedNickname: String = ""
+
+    @FocusState private var nicknameFocused: Bool
 
     private let intervals = Array(stride(from: 10, through: 120, by: 5))
+    private let showSyncStatusBar = false
+    private var settingsForm: SettingsForm {
+        SettingsForm(dayReminder: dayReminder,
+                     nightStart: nightStart,
+                     nightEnd: nightEnd,
+                     nightInterval: nightInterval,
+                     nightEnabled: nightEnabled,
+                     showCommitmentInNotification: showCommitmentInNotification)
+    }
 
     var body: some View {
         ZStack {
             Color(red: 93/255, green: 140/255, blue: 141/255).ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 24) {
+                    if showSyncStatusBar {
+                        syncStatusBar
+                    }
                     profileSection
                     reminderSection
                     languageSection
@@ -35,13 +52,20 @@ struct SettingsPage: View {
         }
         .navigationTitle(NSLocalizedString("settings.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { syncWithSettings() }
-        .onChange(of: dayReminder) { _, newValue in persistSettings(day: newValue, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
-        .onChange(of: nightStart) { _, newValue in persistSettings(day: dayReminder, nightStart: newValue, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
-        .onChange(of: nightEnd) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: newValue, interval: nightInterval, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
-        .onChange(of: nightInterval) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: newValue, enabled: nightEnabled, showCommitment: showCommitmentInNotification) }
-        .onChange(of: nightEnabled) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: newValue, showCommitment: showCommitmentInNotification) }
-        .onChange(of: showCommitmentInNotification) { _, newValue in persistSettings(day: dayReminder, nightStart: nightStart, nightEnd: nightEnd, interval: nightInterval, enabled: nightEnabled, showCommitment: newValue) }
+        .onAppear {
+            settingsSaver.configure { form in
+                persistSettings(day: form.dayReminder,
+                                nightStart: form.nightStart,
+                                nightEnd: form.nightEnd,
+                                interval: form.nightInterval,
+                                enabled: form.nightEnabled,
+                                showCommitment: form.showCommitmentInNotification)
+            }
+            syncWithSettings()
+        }
+        .onChange(of: settingsForm) { _, newValue in
+            settingsSaver.send(newValue)
+        }
         .onReceive(viewModel.$state.map(\.settings)) { settings in
             guard !didSyncInitial, settings != nil else { return }
             syncWithSettings()
@@ -50,6 +74,7 @@ struct SettingsPage: View {
         .onReceive(viewModel.$nickname) { name in
             guard didLoad else { return }
             nickname = name
+            lastCommittedNickname = name
         }
     }
 
@@ -66,11 +91,16 @@ struct SettingsPage: View {
                     .foregroundColor(.white)
                     .padding(.vertical, 10)
                     .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity)
                     .background(Color.white.opacity(0.08))
                     .cornerRadius(12)
-                    .onChange(of: nickname) { _, newValue in
-                        guard didLoad else { return }
-                        Task { await viewModel.updateNickname(newValue) }
+                    .focused($nicknameFocused)
+                    .submitLabel(.done)
+                    .onSubmit { commitNicknameIfNeeded() }
+                    .onChange(of: nicknameFocused) { _, isFocused in
+                        if !isFocused {
+                            commitNicknameIfNeeded()
+                        }
                     }
             }
         }
@@ -226,6 +256,7 @@ struct SettingsPage: View {
         nightEnabled = settings.nightReminderEnabled
         showCommitmentInNotification = settings.showCommitmentInNotification
         nickname = viewModel.nickname
+        lastCommittedNickname = viewModel.nickname
         didLoad = true
     }
 
@@ -247,5 +278,119 @@ struct SettingsPage: View {
         if code.hasPrefix("zh") { return "zh-Hans" }
         if code.hasPrefix("en") { return "en" }
         return "system"
+    }
+
+    private var syncStatusBar: some View {
+        let info = syncStatusInfo()
+        return HStack(alignment: .center, spacing: 12) {
+            Circle()
+                .fill(info.color.opacity(0.9))
+                .frame(width: 10, height: 10)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.title)
+                    .foregroundColor(.white.opacity(0.9))
+                    .font(.system(size: 15, weight: .semibold))
+                if let detail = info.detail {
+                    Text(detail)
+                        .foregroundColor(.white.opacity(0.7))
+                        .font(.system(size: 13))
+                }
+            }
+            Spacer()
+            if info.showRetry {
+                Button {
+                    Task { await viewModel.retrySettingsSync() }
+                } label: {
+                    Text(NSLocalizedString("settings.sync.retry", comment: ""))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(info.color)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(14)
+    }
+
+    private func syncStatusInfo() -> (title: String, detail: String?, color: Color, showRetry: Bool) {
+        switch viewModel.settingsSyncState {
+        case .synced, .idle:
+            return (NSLocalizedString("settings.sync.synced", comment: ""),
+                    nil,
+                    Color(red: 135/255, green: 220/255, blue: 152/255),
+                    false)
+        case .pending(let nextRetry):
+            return (NSLocalizedString("settings.sync.pending", comment: ""),
+                    formatted(nextRetry),
+                    Color(red: 255/255, green: 236/255, blue: 173/255),
+                    true)
+        case .failed(let nextRetry):
+            return (NSLocalizedString("settings.sync.failed", comment: ""),
+                    formatted(nextRetry),
+                    Color(red: 255/255, green: 186/255, blue: 173/255),
+                    true)
+        case .syncing:
+            return (NSLocalizedString("settings.sync.syncing", comment: ""),
+                    nil,
+                    Color(red: 187/255, green: 211/255, blue: 255/255),
+                    false)
+        }
+    }
+
+    private func formatted(_ date: Date?) -> String? {
+        guard let date else { return nil }
+        let text = SettingsPage.retryFormatter.string(from: date)
+        return "\(NSLocalizedString("settings.sync.nextRetry", comment: "")): \(text)"
+    }
+
+    private static let retryFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    private func commitNicknameIfNeeded() {
+        guard didLoad else { return }
+        let currentNickname = nickname
+        guard currentNickname != lastCommittedNickname else { return }
+        lastCommittedNickname = currentNickname
+        Task { await viewModel.updateNickname(currentNickname) }
+    }
+}
+
+private struct SettingsForm: Equatable {
+    var dayReminder: Date
+    var nightStart: Date
+    var nightEnd: Date
+    var nightInterval: Int
+    var nightEnabled: Bool
+    var showCommitmentInNotification: Bool
+}
+
+private final class DebouncedSettingsSaver: ObservableObject {
+    private let subject = PassthroughSubject<SettingsForm, Never>()
+    private var cancellable: AnyCancellable?
+    private let debounceInterval: RunLoop.SchedulerTimeType.Stride
+
+    init(debounceInterval: RunLoop.SchedulerTimeType.Stride = .milliseconds(400)) {
+        self.debounceInterval = debounceInterval
+    }
+
+    func configure(_ persist: @escaping (SettingsForm) -> Void) {
+        guard cancellable == nil else { return }
+        cancellable = subject
+            .removeDuplicates()
+            .debounce(for: debounceInterval, scheduler: RunLoop.main)
+            .sink(receiveValue: persist)
+    }
+
+    func send(_ form: SettingsForm) {
+        subject.send(form)
     }
 }

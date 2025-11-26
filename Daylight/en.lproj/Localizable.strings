@@ -84,8 +84,8 @@
 "settings.reminder.section" = "Reminders";
 "settings.day.time" = "Day reminder";
 "settings.night.enable" = "Night reminder";
-"settings.night.start" = "Night start";
-"settings.night.end" = "Night end";
+"settings.night.start" = "Earliest bedtime";
+"settings.night.end" = "Latest bedtime";
 "settings.night.interval" = "Night reminder interval";
 "settings.language.section" = "Language";
 "settings.language.system" = "System";
@@ -96,6 +96,12 @@
 "settings.profile.section" = "Profile";
 "settings.profile.nickname" = "Nickname";
 "settings.profile.nickname.placeholder" = "Add a nickname for gentler reminders";
+"settings.sync.synced" = "Synced to cloud";
+"settings.sync.pending" = "Saved locally, will retry when online";
+"settings.sync.failed" = "Settings upload failed";
+"settings.sync.syncing" = "Syncing settings";
+"settings.sync.retry" = "Retry now";
+"settings.sync.nextRetry" = "Next retry";
 
 "lightchain.title" = "Light Chain";
 "lightchain.subtitle" = "Let your light get a little brighter each day.";

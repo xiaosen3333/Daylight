@@ -8,13 +8,16 @@ final class SyncQueueRepositoryImpl: SyncQueueRepository {
     }
 
     func enqueuePendingRecord(_ record: DayRecord) async {
-        let item = PendingSyncItem(type: .dayRecord, payload: record, retryCount: 0, lastTryAt: Date())
+        let item = PendingSyncItem(type: .dayRecord, payload: .dayRecord(record), retryCount: 0, lastTryAt: Date())
         try? await local.enqueue(item)
     }
 
     func pendingRecords() async -> [DayRecord] {
         guard let items = try? await local.loadAll() else { return [] }
-        return items.map { $0.payload }
+        return items.compactMap {
+            if case .dayRecord(let record) = $0.payload { return record }
+            return nil
+        }
     }
 
     func removePending(for id: String) async {
