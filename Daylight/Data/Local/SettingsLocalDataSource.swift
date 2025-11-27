@@ -3,6 +3,7 @@ import Foundation
 actor SettingsLocalDataSource {
     private let storage: FileStorage
     private let filename = "settings.json"
+    private let dateHelper = DaylightDateHelper()
 
     init(storage: FileStorage = FileStorage()) {
         self.storage = storage
@@ -11,14 +12,18 @@ actor SettingsLocalDataSource {
     func load(userId: String) throws -> Settings {
         if let wrapper: PersistedList<Settings> = try storage.read(PersistedList<Settings>.self, from: filename),
            let setting = wrapper.items.first(where: { $0.userId == userId }) {
-            return setting
+            let normalized = normalize(setting)
+            if normalized != setting {
+                try save(normalized)
+            }
+            return normalized
         }
 
         let defaults = Settings(
             userId: userId,
             dayReminderTime: "11:00",
-            nightReminderStart: "22:30",
-            nightReminderEnd: "00:30",
+            nightReminderStart: DaylightDateHelper.defaultNightWindow.start,
+            nightReminderEnd: DaylightDateHelper.defaultNightWindow.end,
             nightReminderInterval: 30,
             nightReminderEnabled: true,
             showCommitmentInNotification: true,
@@ -26,6 +31,17 @@ actor SettingsLocalDataSource {
         )
         try save(defaults)
         return defaults
+    }
+
+    private func normalize(_ settings: Settings) -> Settings {
+        var next = settings
+        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
+        guard dateHelper.parsedNightWindow(window) != nil else {
+            next.nightReminderStart = DaylightDateHelper.defaultNightWindow.start
+            next.nightReminderEnd = DaylightDateHelper.defaultNightWindow.end
+            return next
+        }
+        return next
     }
 
     func save(_ settings: Settings) throws {

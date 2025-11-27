@@ -146,7 +146,7 @@ struct TodayView: View {
                 Task {
                     _ = await viewModel.refreshIfNeeded(trigger: .foreground, includeMonth: showStats)
                     if showStats {
-                        await loadStatsData(month: viewModel.todayDate())
+                        await loadStatsData()
                     }
                 }
             }
@@ -198,15 +198,17 @@ struct TodayView: View {
 
     // MARK: - Stats cards (inline)
     private var statsGrid: some View {
-        LightChainVisualizationGallery(
-            records: viewModel.monthRecords,
+        let todayKey = viewModel.todayKey()
+        let normalized = viewModel.normalizedMonthRecords(todayKey: todayKey)
+        return LightChainVisualizationGallery(
+            records: normalized,
             selectedRecord: selectedRecord,
             streak: viewModel.state.streak,
             currentMonth: currentMonth,
             userId: viewModel.currentUserId ?? "",
             locale: viewModel.locale,
             timeZone: viewModel.dateHelper.timeZone,
-            todayKey: viewModel.todayKey(),
+            todayKey: todayKey,
             onMonthChange: { newMonth in
                 currentMonth = newMonth
                 Task { await loadStatsData(month: newMonth) }
@@ -279,9 +281,11 @@ struct TodayView: View {
     }
 
     private func loadStatsData(month: Date? = nil) async {
-        let effectiveToday = viewModel.todayDate()
+        let now = Date()
         var calendar = viewModel.dateHelper.calendar
         calendar.timeZone = viewModel.dateHelper.timeZone
+        let todayKey = viewModel.todayKey(for: now)
+        let effectiveToday = viewModel.dateHelper.dayFormatter.date(from: todayKey) ?? calendar.startOfDay(for: now)
         var targetMonth = month ?? currentMonth
         if month == nil && !calendar.isDate(effectiveToday, equalTo: targetMonth, toGranularity: .month) {
             targetMonth = effectiveToday
@@ -289,8 +293,8 @@ struct TodayView: View {
         currentMonth = targetMonth
         isLoadingStats = true
         await viewModel.loadMonth(targetMonth)
-        let todayKey = viewModel.todayKey(for: effectiveToday)
-        if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
+        let normalized = viewModel.normalizedMonthRecords(todayKey: todayKey)
+        if let today = normalized.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
             let userId = viewModel.currentUserId ?? ""

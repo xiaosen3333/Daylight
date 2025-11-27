@@ -31,6 +31,9 @@ struct SettingsPage: View {
                      nightEnabled: nightEnabled,
                      showCommitmentInNotification: showCommitmentInNotification)
     }
+    private var nightWindowWarning: String? {
+        nightWindowValidation(for: settingsForm).message
+    }
 
     var body: some View {
         ZStack {
@@ -54,6 +57,7 @@ struct SettingsPage: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             settingsSaver.configure { form in
+                guard nightWindowValidation(for: form).isValid else { return }
                 persistSettings(day: form.dayReminder,
                                 nightStart: form.nightStart,
                                 nightEnd: form.nightEnd,
@@ -64,6 +68,7 @@ struct SettingsPage: View {
             syncWithSettings()
         }
         .onChange(of: settingsForm) { _, newValue in
+            guard nightWindowValidation(for: newValue).isValid else { return }
             settingsSaver.send(newValue)
         }
         .onReceive(viewModel.$state.map(\.settings)) { settings in
@@ -171,6 +176,12 @@ struct SettingsPage: View {
                 }
             }
             .toggleStyle(SwitchToggleStyle(tint: DaylightColors.glowGold))
+            if let warning = nightWindowWarning {
+                Text(warning)
+                    .font(DaylightTypography.caption)
+                    .foregroundColor(DaylightColors.statusError)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(16)
         .background(DaylightColors.bgOverlay08)
@@ -238,6 +249,13 @@ struct SettingsPage: View {
 
     private func persistSettings(day: Date, nightStart: Date, nightEnd: Date, interval: Int, enabled: Bool, showCommitment: Bool) {
         guard didLoad else { return }
+        let form = SettingsForm(dayReminder: day,
+                                nightStart: nightStart,
+                                nightEnd: nightEnd,
+                                nightInterval: interval,
+                                nightEnabled: enabled,
+                                showCommitmentInNotification: showCommitment)
+        guard nightWindowValidation(for: form).isValid else { return }
         Task {
             await viewModel.saveSettings(dayReminder: day,
                                          nightStart: nightStart,
@@ -330,6 +348,28 @@ struct SettingsPage: View {
         formatter.timeStyle = .short
         return formatter
     }()
+
+    private func nightWindowValidation(for form: SettingsForm) -> (isValid: Bool, message: String?) {
+        var calendar = viewModel.dateHelper.calendar
+        calendar.timeZone = viewModel.dateHelper.timeZone
+        let startComponents = calendar.dateComponents(in: viewModel.dateHelper.timeZone, from: form.nightStart)
+        let endComponents = calendar.dateComponents(in: viewModel.dateHelper.timeZone, from: form.nightEnd)
+        guard let startHour = startComponents.hour,
+              let startMinute = startComponents.minute,
+              let endHour = endComponents.hour,
+              let endMinute = endComponents.minute else {
+            return (false, NSLocalizedString("settings.night.validation.invalid", comment: ""))
+        }
+        let startMinutes = startHour * 60 + startMinute
+        let endMinutes = endHour * 60 + endMinute
+        let duration = startMinutes == endMinutes
+        ? 0
+        : (startMinutes < endMinutes ? endMinutes - startMinutes : (24 * 60 - startMinutes + endMinutes))
+        if duration <= 0 {
+            return (false, NSLocalizedString("settings.night.validation.order", comment: ""))
+        }
+        return (true, nil)
+    }
 
     private func commitNicknameIfNeeded() {
         guard didLoad else { return }

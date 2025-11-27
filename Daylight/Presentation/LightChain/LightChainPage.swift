@@ -5,6 +5,12 @@ struct LightChainPage: View {
     @State private var currentMonth: Date = Date()
     @State private var selectedRecord: DayRecord?
     @State private var isLoadingMonth = false
+    @State private var displayRecords: [DayRecord] = []
+
+    private var recordsForDisplay: [DayRecord] {
+        if !displayRecords.isEmpty { return displayRecords }
+        return viewModel.normalizedMonthRecords(todayKey: viewModel.todayKey())
+    }
 
     private var calendar: Calendar {
         var cal = viewModel.dateHelper.calendar
@@ -16,10 +22,11 @@ struct LightChainPage: View {
         ZStack {
             background
             ScrollView {
+                let records = recordsForDisplay
                 VStack(spacing: 20) {
-                    LightChainPrimaryCard(records: viewModel.monthRecords, streak: viewModel.state.streak)
+                    LightChainPrimaryCard(records: records, streak: viewModel.state.streak)
                     LightChainStreakCalendarCard(
-                        records: viewModel.monthRecords,
+                        records: records,
                         month: currentMonth,
                         locale: viewModel.locale,
                         initialSelection: selectedRecord?.date ?? viewModel.todayKey(),
@@ -317,7 +324,8 @@ struct LightChainPage: View {
     }
 
     private func loadMonthData(month: Date? = nil) async {
-        let effectiveToday = viewModel.todayDate()
+        let todayKey = viewModel.todayKey()
+        let effectiveToday = viewModel.dateHelper.dayFormatter.date(from: todayKey) ?? viewModel.dateHelper.calendar.startOfDay(for: Date())
         var targetMonth = month ?? currentMonth
         if month == nil && !calendar.isDate(effectiveToday, equalTo: targetMonth, toGranularity: .month) {
             targetMonth = effectiveToday
@@ -325,8 +333,9 @@ struct LightChainPage: View {
         currentMonth = targetMonth
         isLoadingMonth = true
         await viewModel.loadMonth(targetMonth)
-        let todayKey = viewModel.todayKey(for: effectiveToday)
-        if let today = viewModel.monthRecords.first(where: { $0.date == todayKey }) {
+        let normalized = viewModel.normalizedMonthRecords(todayKey: todayKey)
+        displayRecords = normalized
+        if let today = normalized.first(where: { $0.date == todayKey }) {
             selectedRecord = today
         } else {
             selectedRecord = defaultRecord(for: viewModel.currentUserId ?? "", date: todayKey)
@@ -350,7 +359,7 @@ struct LightChainPage: View {
         let firstWeekday = calendar.component(.weekday, from: startDate) // 1=Sun
         var cells: [DayCell?] = Array(repeating: nil, count: firstWeekday - 1)
 
-        let recordMap = Dictionary(uniqueKeysWithValues: viewModel.monthRecords.map { ($0.date, $0) })
+        let recordMap = Dictionary(uniqueKeysWithValues: recordsForDisplay.map { ($0.date, $0) })
         for day in range {
             if let date = calendar.date(byAdding: .day, value: day - 1, to: startDate) {
                 let dateString = viewModel.dateHelper.dayFormatter.string(from: date)

@@ -96,6 +96,8 @@
 "settings.profile.section" = "Profile";
 "settings.profile.nickname" = "Nickname";
 "settings.profile.nickname.placeholder" = "Add a nickname for gentler reminders";
+"settings.night.validation.invalid" = "Please enter a valid bedtime";
+"settings.night.validation.order" = "Latest bedtime must be after earliest (cross-midnight allowed). Adjust before saving.";
 "settings.sync.synced" = "Synced to cloud";
 "settings.sync.pending" = "Saved locally, will retry when online";
 "settings.sync.failed" = "Settings upload failed";

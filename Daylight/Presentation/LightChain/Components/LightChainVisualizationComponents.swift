@@ -168,6 +168,12 @@ struct LightChainStreakCalendarCard: View {
                 month = newValue
             }
         }
+        .onChange(of: initialSelection) { _, newValue in
+            // 外部选中态变化时同步到内部状态，避免日历高亮与底部卡片不一致
+            if selectedId != newValue {
+                selectedId = newValue
+            }
+        }
     }
 
     private var calendar: Calendar {

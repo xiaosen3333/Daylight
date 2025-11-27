@@ -97,6 +97,8 @@
 "settings.profile.section" = "个人";
 "settings.profile.nickname" = "昵称";
 "settings.profile.nickname.placeholder" = "填个昵称，提醒时会更温柔";
+"settings.night.validation.invalid" = "请填写有效的入睡时间";
+"settings.night.validation.order" = "最晚入睡需晚于最早入睡（支持跨日），请调整后再保存";
 "settings.sync.synced" = "已同步到云端";
 "settings.sync.pending" = "本地已保存，待网络恢复自动重试";
 "settings.sync.failed" = "设置未能上传";

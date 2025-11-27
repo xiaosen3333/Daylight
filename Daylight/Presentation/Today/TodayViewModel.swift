@@ -196,6 +196,34 @@ final class TodayViewModel: ObservableObject {
         return dateHelper.dayFormatter.date(from: key) ?? reference
     }
 
+    /// 按夜窗重新归一化当月记录，必要时填充当天默认记录，避免 UI 重复实现。
+    func normalizedMonthRecords(todayKey: String) -> [DayRecord] {
+        var map = Dictionary(uniqueKeysWithValues: monthRecords.map { ($0.date, $0) })
+        if let settings = state.settings {
+            let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
+            for record in monthRecords {
+                let recomputed = dateHelper.localDayString(for: record.updatedAt, nightWindow: window)
+                if recomputed == todayKey && record.date != recomputed && map[todayKey] == nil {
+                    map[recomputed] = DayRecord(
+                        userId: record.userId,
+                        date: recomputed,
+                        commitmentText: record.commitmentText,
+                        dayLightStatus: record.dayLightStatus,
+                        nightLightStatus: record.nightLightStatus,
+                        sleepConfirmedAt: record.sleepConfirmedAt,
+                        nightRejectCount: record.nightRejectCount,
+                        updatedAt: record.updatedAt,
+                        version: record.version
+                    )
+                }
+            }
+        }
+        if map[todayKey] == nil {
+            map[todayKey] = defaultRecord(for: currentUserId ?? "", date: todayKey)
+        }
+        return map.values.sorted { $0.date < $1.date }
+    }
+
     private func nextDayKey(from dayKey: String, settings: Settings) -> String? {
         guard let dayDate = dateHelper.dayFormatter.date(from: dayKey) else { return nil }
         return dateHelper.calendar.date(byAdding: .day, value: 1, to: dayDate).map { dateHelper.dayFormatter.string(from: $0) }

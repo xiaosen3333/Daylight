@@ -6,8 +6,17 @@ struct NightWindow {
 }
 
 struct DaylightDateHelper {
+    struct ParsedNightWindow {
+        let startMinutes: Int
+        let endMinutes: Int
+        let crossesMidnight: Bool
+    }
+
+    static let defaultNightWindow = NightWindow(start: "22:30", end: "00:30")
+
     let calendar: Calendar
     let timeZone: TimeZone
+    private let minutesPerDay = 24 * 60
 
     init(calendar: Calendar = .current, timeZone: TimeZone = .current) {
         self.calendar = calendar
@@ -37,16 +46,15 @@ struct DaylightDateHelper {
         }
 
         let minutesIntoDay = hour * 60 + minute
-        let endMinutes = minutes(for: nightWindow.end)
+        let window = parsedOrDefault(nightWindow)
 
         let baseDate: Date
-        if minutesIntoDay <= endMinutes {
-            // 00:00 - endMinutes 属于前一日
+        if window.crossesMidnight && minutesIntoDay <= window.endMinutes {
+            // 仅跨日窗口的凌晨归属前一日
             baseDate = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: date)) ?? calendar.startOfDay(for: date)
         } else {
             baseDate = calendar.startOfDay(for: date)
         }
-
         return dayFormatter.string(from: baseDate)
     }
 
@@ -54,16 +62,17 @@ struct DaylightDateHelper {
         var calendar = calendar
         calendar.timeZone = timeZone
 
-        let endMinutes = minutes(for: nightWindow.end) + 1
+        let window = parsedOrDefault(nightWindow)
+        let boundaryMinutes = window.crossesMidnight ? window.endMinutes + 1 : minutesPerDay
         let startOfDay = calendar.startOfDay(for: date)
-        guard let candidate = calendar.date(byAdding: .minute, value: endMinutes, to: startOfDay) else {
+        guard let candidate = calendar.date(byAdding: .minute, value: boundaryMinutes, to: startOfDay) else {
             return date
         }
         if date < candidate {
             return candidate
         }
         guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: startOfDay),
-              let next = calendar.date(byAdding: .minute, value: endMinutes, to: tomorrow) else {
+              let next = calendar.date(byAdding: .minute, value: boundaryMinutes, to: tomorrow) else {
             return candidate
         }
         return next
@@ -92,10 +101,11 @@ struct DaylightDateHelper {
         guard let hour = components.hour, let minute = components.minute else { return false }
 
         let minutesIntoDay = hour * 60 + minute
-        let startMinutes = minutes(for: window.start)
-        let endMinutes = minutes(for: window.end)
+        let parsed = parsedOrDefault(window)
+        let startMinutes = parsed.startMinutes
+        let endMinutes = parsed.endMinutes
 
-        if startMinutes <= endMinutes {
+        if !parsed.crossesMidnight {
             return minutesIntoDay >= startMinutes && minutesIntoDay <= endMinutes
         }
 
@@ -103,12 +113,14 @@ struct DaylightDateHelper {
         return minutesIntoDay >= startMinutes || minutesIntoDay <= endMinutes
     }
 
-    private func minutes(for time: String) -> Int {
+    private func minutes(for time: String) -> Int? {
         let parts = time.split(separator: ":")
         guard parts.count == 2,
               let hour = Int(parts[0]),
-              let minute = Int(parts[1]) else {
-            return 0
+              let minute = Int(parts[1]),
+              (0..<24).contains(hour),
+              (0..<60).contains(minute) else {
+            return nil
         }
         return hour * 60 + minute
     }
@@ -118,7 +130,7 @@ struct DaylightDateHelper {
     }
 
     func date(from timeString: String, reference: Date = Date()) -> Date {
-        let minutesTotal = minutes(for: timeString)
+        guard let minutesTotal = minutes(for: timeString) else { return reference }
         var calendar = calendar
         calendar.timeZone = timeZone
         var components = calendar.dateComponents(in: timeZone, from: reference)
@@ -126,5 +138,28 @@ struct DaylightDateHelper {
         components.minute = minutesTotal % 60
         components.second = 0
         return calendar.date(from: components) ?? reference
+    }
+
+    func parsedNightWindow(_ window: NightWindow) -> ParsedNightWindow? {
+        guard let startMinutes = minutes(for: window.start),
+              let endMinutes = minutes(for: window.end),
+              startMinutes != endMinutes else {
+            return nil
+        }
+        let crossesMidnight = startMinutes > endMinutes
+        let duration = crossesMidnight ? minutesPerDay - startMinutes + endMinutes : endMinutes - startMinutes
+        guard duration > 0 else { return nil }
+        return ParsedNightWindow(startMinutes: startMinutes, endMinutes: endMinutes, crossesMidnight: crossesMidnight)
+    }
+
+    private func parsedOrDefault(_ window: NightWindow) -> ParsedNightWindow {
+        if let parsed = parsedNightWindow(window) {
+            return parsed
+        }
+        if let parsedDefault = parsedNightWindow(DaylightDateHelper.defaultNightWindow) {
+            return parsedDefault
+        }
+        // 最后兜底，避免默认值异常导致崩溃
+        return ParsedNightWindow(startMinutes: 22 * 60 + 30, endMinutes: 30, crossesMidnight: true)
     }
 }
