@@ -333,12 +333,25 @@ struct NotificationScheduler {
     }
 
     private func minutes(from time: String) -> Int? {
-        let parts = time.split(separator: ":")
-        guard parts.count == 2,
-              let hour = Int(parts[0]),
-              let minute = Int(parts[1]) else {
+        let trimmed = time.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = trimmed.split(separator: ":")
+        if parts.count == 2,
+           let hour = Int(parts[0]),
+           let minute = Int(parts[1]),
+           (0..<24).contains(hour),
+           (0..<60).contains(minute) {
+            return hour * 60 + minute
+        }
+        var formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = timeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "h:mm a"
+        guard let date = formatter.date(from: trimmed) else {
             return nil
         }
+        let comps = calendar.dateComponents(in: timeZone, from: date)
+        guard let hour = comps.hour, let minute = comps.minute else { return nil }
         return hour * 60 + minute
     }
 

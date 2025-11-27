@@ -288,9 +288,9 @@ final class TodayViewModel: ObservableObject {
         guard var settings = state.settings else { return }
         state.errorMessage = nil
         settingsSyncState = .syncing
-        settings.dayReminderTime = dateHelper.timeString(from: dayReminder)
-        settings.nightReminderStart = dateHelper.timeString(from: nightStart)
-        settings.nightReminderEnd = dateHelper.timeString(from: nightEnd)
+        settings.dayReminderTime = dateHelper.storageTimeString(from: dayReminder)
+        settings.nightReminderStart = dateHelper.storageTimeString(from: nightStart)
+        settings.nightReminderEnd = dateHelper.storageTimeString(from: nightEnd)
         settings.nightReminderInterval = interval
         settings.nightReminderEnabled = nightEnabled
         settings.showCommitmentInNotification = showCommitmentInNotification

@@ -495,11 +495,8 @@ struct DayRecordStatusCard: View {
 
     private func sleepLine() -> String? {
         guard record.nightLightStatus == .on, let sleep = record.sleepConfirmedAt else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = timeZone
-        formatter.timeStyle = .short
-        let time = formatter.string(from: sleep)
+        let helper = DaylightDateHelper(calendar: Calendar.current, timeZone: timeZone)
+        let time = helper.displayTimeString(from: sleep)
         return String(format: NSLocalizedString("record.card.sleep", comment: ""), time)
     }
 

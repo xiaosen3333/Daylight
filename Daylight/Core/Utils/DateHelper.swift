@@ -87,11 +87,30 @@ struct DaylightDateHelper {
     }
 
     var shortTimeFormatter: DateFormatter {
+        storageTimeFormatter
+    }
+
+    var storageTimeFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = timeZone
         formatter.dateFormat = "HH:mm"
         return formatter
+    }
+
+    var displayTimeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = timeZone
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter
+    }
+
+    var uses12HourFormat: Bool {
+        let template = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .autoupdatingCurrent) ?? ""
+        return template.contains("a")
     }
 
     func isInNightWindow(_ date: Date = Date(), window: NightWindow) -> Bool {
@@ -114,19 +133,46 @@ struct DaylightDateHelper {
     }
 
     private func minutes(for time: String) -> Int? {
-        let parts = time.split(separator: ":")
+        let trimmed = time.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 首选 24 小时制，保持存储格式一致
+        let parts = trimmed.split(separator: ":")
         guard parts.count == 2,
               let hour = Int(parts[0]),
               let minute = Int(parts[1]),
               (0..<24).contains(hour),
               (0..<60).contains(minute) else {
-            return nil
+            var formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.timeZone = timeZone
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "h:mm a"
+            guard let date = formatter.date(from: trimmed) else {
+                return nil
+            }
+            var cal = calendar
+            cal.timeZone = timeZone
+            let comps = cal.dateComponents(in: timeZone, from: date)
+            guard let hour = comps.hour, let minute = comps.minute else { return nil }
+            return hour * 60 + minute
         }
         return hour * 60 + minute
     }
 
     func timeString(from date: Date) -> String {
-        shortTimeFormatter.string(from: date)
+        storageTimeString(from: date)
+    }
+
+    func storageTimeString(from date: Date) -> String {
+        storageTimeFormatter.string(from: date)
+    }
+
+    func displayTimeString(from date: Date) -> String {
+        displayTimeFormatter.string(from: date)
+    }
+
+    func displayTimeString(from timeString: String, reference: Date = Date()) -> String {
+        let date = date(from: timeString, reference: reference)
+        return displayTimeFormatter.string(from: date)
     }
 
     func date(from timeString: String, reference: Date = Date()) -> Date {

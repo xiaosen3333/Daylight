@@ -1,5 +1,40 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.3.5）
+- 目的：时间显示与输入遵循系统 12/24 小时习惯，美国等 12 小时地区自动展示 AM/PM，存储/调度仍使用 24 小时标准以兼容既有数据与服务端。
+- 范围：`DaylightDateHelper` 统一存储/展示格式器与解析；Settings 时间选择、LightChain 详情睡眠时间展示；通知调度时间解析兜底；不改数据模型与日界/通知逻辑。
+- 影响面：Settings 提醒时间选择器、LightChain 日历详情的“Sleep time”、提醒时间解析与通知排程；其他模块（日界判定、数据存储、网络协议）行为保持不变。
+- 验收要点：系统切到 12 小时制时三处时间均显示 12h（含 AM/PM），切回 24 小时制正常；设置存储仍为 `HH:mm`；夜窗计算与通知排程时间不偏移；非法/12h 输入可解析不崩溃。
+
+### ASCII 原型（Settings 提醒卡 12 小时示例）
+```
++----------------------------------------------+
+| Reminders                                    |
+|  Day reminder        [10:00 PM ▢]            |
+|  Night reminder      [On  ▣]                 |
+|  Earliest bedtime    [10:30 PM ▢]            |
+|  Latest bedtime      [12:30 AM ▢]            |
+|  Night interval      [30 min ▼]              |
++----------------------------------------------+
+```
+
+### ASCII 原型（LightChain 详情睡眠时间随制式）
+```
++----------------------------------------------+
+| Nov 18, 2025                                 |
+| Status: Both lamps on                        |
+| Commitment: 不给周一留麻烦                   |
+| Sleep time: 11:18 PM                         |
+| Night hesitations: 1                         |
++----------------------------------------------+
+```
+
+### 技术架构与要点更新
+- 时间格式器：`DaylightDateHelper` 增加 `storageTimeFormatter`（24h 存储）与 `displayTimeFormatter`（`timeStyle=.short` + `.autoupdatingCurrent`），新增 `uses12HourFormat` 供检测制式。
+- 解析兜底：`minutes(for:)` 首选 `HH:mm`，失败时用 `h:mm a`（en_US_POSIX）解析 AM/PM，适配未来 12h 字符串；`NotificationScheduler` 解析同步兜底，防止排程失效。
+- UI 跟随系统制式：Settings 三个 `DatePicker` 强制 `.autoupdatingCurrent` locale；LightChain 睡眠时间使用 `displayTimeFormatter`，不再被应用语言强制 24h。
+- 存储/调度不变：Settings/通知仍写入 24h 字符串，日界判定、夜窗计算、网络协议保持原格式，无需迁移。
+
 ## 新版本更新（1.3.4）
 - 目的：将现有 Text 渐进替换为 `.daylight(...)`，统一字体/颜色/折行/缩放策略，保持视觉不变且不改文案。
 - 范围：仅 Presentation 层显式 Text；Domain/Data/Core/通知不改；新增 Snapshot 用例覆盖 `.daylight` 常用样式防回归。

@@ -125,6 +125,7 @@ struct SettingsPage: View {
                 DatePicker("", selection: $dayReminder, displayedComponents: .hourAndMinute)
                     .labelsHidden()
                     .colorScheme(.dark)
+                    .environment(\.locale, .autoupdatingCurrent)
             }
 
             Toggle(isOn: $nightEnabled) {
@@ -140,6 +141,7 @@ struct SettingsPage: View {
                 DatePicker("", selection: $nightStart, displayedComponents: .hourAndMinute)
                     .labelsHidden()
                     .colorScheme(.dark)
+                    .environment(\.locale, .autoupdatingCurrent)
             }
 
             HStack {
@@ -149,6 +151,7 @@ struct SettingsPage: View {
                 DatePicker("", selection: $nightEnd, displayedComponents: .hourAndMinute)
                     .labelsHidden()
                     .colorScheme(.dark)
+                    .environment(\.locale, .autoupdatingCurrent)
             }
 
             HStack {
