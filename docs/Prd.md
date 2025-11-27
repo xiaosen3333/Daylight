@@ -1,5 +1,85 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.3.4）
+- 目的：将现有 Text 渐进替换为 `.daylight(...)`，统一字体/颜色/折行/缩放策略，保持视觉不变且不改文案。
+- 范围：仅 Presentation 层显式 Text；Domain/Data/Core/通知不改；新增 Snapshot 用例覆盖 `.daylight` 常用样式防回归。
+- 影响面：Today/DayCommitment/NightGuard/LightChain/Settings/Dev/App 的文本样式调用入口；默认色为白色 90%，可透传自定义 color。
+- 验收要点：替换后 UI 视觉与现有一致（含中英文、大字号）；GlowGold/次级文本需传 `color:`；Snapshot/UI 测试基线通过；编译通过。
+
+### ASCII 原型（统一样式调用）
+```
+[Today Header]
+ GlowingSun
+ HomeTitle    -> .daylight(.hero, color:white90%, alignment:.center, lineLimit:2)
+ HomeSubtitle -> .daylight(.bodyLarge, color:white80%, alignment:.center, lineLimit:2)
+
+[LightChain Bar]
+ o o o o o o o
+
+[Day Grid]
+ Su Mo Tu ...     (weekday -> .caption2, color: calendarArrow or white70%)
+ [28][29][30]...  (day -> .caption1, color: status.textColor)
+
+[DayCommitment]
+ 标题 -> .daylight(.title2, alignment:.center, lineLimit:2)
+ 文本框/建议 -> .daylight(.body2/.body2Medium, color:white)
+
+[NightGuard]
+ 标题 -> .daylight(.display, color:glowGold, alignment:.center, lineLimit:2)
+ 副文 -> .daylight(.body, color:white80%, alignment:.center)
+
+[LightChain Cards]
+ PrimaryCard: title .display glowGold | subtitle .headline glowGold | streak .streakNumber + .subhead
+ CalendarCard: 月份 .callout(calendarMonth) | weekday .caption2 white70% | day .caption1(status color)
+ DetailCard: title .headline glowGold | 日期 .caption1Medium | 正文 .body2Medium | 空态 .body2Medium white60%
+ StreakCard: title .headline glowGold | 副文 .footnoteMedium | 数字 .body2Medium
+ DayRecordStatusCard: 日期 .caption1Medium | 状态标题 .headline glowGold | 描述/承诺/睡眠/拒绝 .footnote/.footnoteMedium
+
+[Settings/Dev/App]
+ Section title -> .subheadSemibold white90%
+ label -> .body2 white80% | 描述/警告 -> .caption/.caption1Medium (tertiary/statusError)
+ Dev 标题 -> .devTitle | 按钮 -> .callout | 取消 -> .body2
+ App 错误/加载 -> .headline/.body (white90%/80%)
+```
+
+### 技术架构与要点更新
+- 样式入口：复用已有 `Text.daylight(style,color:,alignment:,lineLimit:,minimumScaleFactor:)`，默认 `white + DaylightTextOpacity.primary`，保留 `fixedSize(vertical:true)` + `layoutPriority(1)`。
+- 色彩策略：GlowGold/次级/三、四级文本通过 `color:` 传递，禁止新增颜色 Token；保留既有透明度常量。
+- 折行/缩放：单行标题按需 `lineLimit(1)` + 自定义 `minimumScaleFactor`；长文案保留多行；大字号模式不截断。
+- 模块隔离：仅改 Presentation 层 Text；按钮/布局不变；不触碰 Domain/Data/Core/通知。
+- 测试：新增 Snapshot/UI 用例覆盖 `.daylight` 典型样式（默认色、GlowGold、高字号、多行）；运行 xcodebuild 编译通过。
+
+## 新版本更新（1.3.3）
+- 目的：为 Text 提供统一样式出口，复用现有 DaylightTypography/Colors/Opacity，避免散点配置导致视觉漂移和维护成本。
+- 范围：新增 UI 封装 `DaylightTextStyle` + `Text.daylight(...)`（仅 Presentation 层）；不改 Domain/Data/Core/通知。
+- 影响面：后续 Text 可渐进替换为 `.daylight(...)` 统一字体/颜色/缩放/折行策略；默认行为保持现有视觉。
+- 验收要点：新增组件可用且编译通过；默认样式与现有 Token 一致；未改动的页面行为不变。
+
+### ASCII 原型（统一样式调用示例）
+```
+[标题区]
+Text(title).daylight(.title2, alignment:.center, lineLimit:2)
+Text(subtitle).daylight(.bodyLarge, alignment:.center,
+                        color:.white.opacity(DaylightTextOpacity.secondary))
+
+[卡片]
+Text(header).daylight(.display, color: DaylightColors.glowGold)
+Text(desc).daylight(.headline,
+                    color: DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
+
+[设置行]
+Text(label).daylight(.body2)
+Text(value).daylight(.body2Medium,
+                     alignment:.trailing,
+                     color:.white.opacity(DaylightTextOpacity.secondary))
+```
+
+### 技术架构与要点更新
+- 样式映射：`DaylightTextStyle` 仅包含项目实际使用的字体样式（hero/display/title2/title3/headline/subhead/subheadSemibold/bodyLarge/body2/body2Medium/footnote/footnoteMedium/footnoteSemibold/caption1/caption1Medium/caption2/caption/callout/streakNumber/devTitle/body），直接映射到已有 `DaylightTypography`。
+- 颜色策略：默认使用白色 + `DaylightTextOpacity.primary`，可显式传入自定义 `color`；保留 `alignment`、`lineLimit`、`minimumScaleFactor`。
+- 防压缩：内置 `fixedSize(vertical:true)` + `layoutPriority(1)`，避免复杂布局下被挤压；轻量缩放 `minimumScaleFactor(0.9)` 默认开启，可覆盖。
+- 模块隔离：新增文件放在 DesignSystem/Components，不修改任何现有接口或 Token，保持其他模块行为不变。
+
 ## 新版本更新（1.3.2）
 - 目的：跨日夜窗下月历高亮与详情卡错位（todayKey=昨天，详情卡/占位显示今天或跳占位）的问题彻底对齐；Today 内嵌统计与 LightChain 页统一使用夜窗切日后的 todayKey 与归一化记录。
 - 范围：仅 Presentation 层的月度数据归一化与选中逻辑（TodayView/TodayViewModel/LightChainPage）；复用既有切日工具与接口，不改 Domain/Data/Core/通知。

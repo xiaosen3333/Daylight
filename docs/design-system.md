@@ -313,6 +313,37 @@ DaylightGhostButton(title: "触发通知") {
 }
 ```
 
+### 7.6 文本统一入口（Text.daylight）
+
+```swift
+// 默认：白色 90%，防压缩 + 0.9 缩放
+Text("主标题")
+    .daylight(.hero, alignment: .center, lineLimit: 2)
+
+// GlowGold 高亮
+Text("高亮标题")
+    .daylight(.headline, color: DaylightColors.glowGold)
+
+// 次级/多行文案
+Text("说明文案")
+    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary), alignment: .leading)
+```
+
+> Snapshot 覆盖建议（占位代码，可放入测试目标）：
+> ```swift
+> import XCTest
+> import SwiftUI
+> 
+> final class DaylightTextSnapshotTests: XCTestCase {
+>     func testDaylightTextDefault() throws {
+>         let view = Text("Daylight Hero").daylight(.hero)
+>         let renderer = ImageRenderer(content: view.frame(width: 200, height: 80))
+>         let image = renderer.uiImage
+>         XCTAssertNotNil(image) // 基线快照比对可用 SnapshotTesting
+>     }
+> }
+> ```
+
 ---
 
 ## 文件结构

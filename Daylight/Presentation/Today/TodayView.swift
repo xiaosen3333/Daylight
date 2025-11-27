@@ -50,11 +50,12 @@ struct TodayView: View {
 
                                 VStack(spacing: showStats ? 0 : 4) {
                                     Text(homeTitle)
-                                        .font(DaylightTypography.hero)
-                                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                                        .daylight(.hero, alignment: .center, lineLimit: 2)
                                     Text(homeSubtitle)
-                                        .font(DaylightTypography.bodyLarge)
-                                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                                        .daylight(.bodyLarge,
+                                                  color: .white.opacity(DaylightTextOpacity.secondary),
+                                                  alignment: .center,
+                                                  lineLimit: 2)
                                 }
                                 .padding(.top, 4)
 
@@ -224,7 +225,7 @@ struct TodayView: View {
         HStack {
             ForEach(weekdaySymbols, id: \.self) { day in
                 Text(day)
-                    .font(DaylightTypography.caption2)
+                    .daylight(.caption2, color: .white.opacity(DaylightTextOpacity.tertiary))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -255,8 +256,7 @@ struct TodayView: View {
         } label: {
             VStack {
                 Text(day.dayString)
-                    .font(DaylightTypography.caption1)
-                    .foregroundColor(status.textColor)
+                    .daylight(.caption1, color: status.textColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(
@@ -524,9 +524,7 @@ struct DayCommitmentPage: View {
                     .padding(.top, 40)
 
                 Text(NSLocalizedString("commit.title.full", comment: ""))
-                    .multilineTextAlignment(.center)
-                    .font(DaylightTypography.title2)
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                    .daylight(.title2, alignment: .center, lineLimit: 2)
                     .padding(.horizontal, 24)
 
                 VStack(spacing: 12) {
@@ -557,27 +555,26 @@ struct DayCommitmentPage: View {
         }
     }
 
+    @ViewBuilder
     private func capsuleField(title: String, isEditable: Bool) -> some View {
-        Group {
-            if isEditable {
-                TextField(title, text: Binding(
-                    get: { text },
-                    set: { text = $0 }
-                ))
+        if isEditable {
+            TextField(title, text: Binding(
+                get: { text },
+                set: { text = $0 }
+            ))
+            .padding(.horizontal, 18)
+            .frame(height: 52)
+            .background(DaylightColors.actionPrimary)
+            .cornerRadius(DaylightRadius.capsule)
+            .foregroundColor(.white)
+        } else {
+            Text(title)
+                .daylight(.body2, color: .white, alignment: .leading)
                 .padding(.horizontal, 18)
                 .frame(height: 52)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(DaylightColors.actionPrimary)
                 .cornerRadius(DaylightRadius.capsule)
-                .foregroundColor(.white)
-            } else {
-                Text(title)
-                    .padding(.horizontal, 18)
-                    .frame(height: 52)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(DaylightColors.actionPrimary)
-                    .cornerRadius(DaylightRadius.capsule)
-                    .foregroundColor(.white)
-            }
         }
     }
 
@@ -586,12 +583,12 @@ struct DayCommitmentPage: View {
             text = suggestion
         } label: {
             Text(suggestion)
+                .daylight(.body2, color: .white, alignment: .leading)
                 .padding(.horizontal, 18)
                 .frame(height: 52)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(DaylightColors.actionPrimary)
                 .cornerRadius(DaylightRadius.capsule)
-                .foregroundColor(.white)
         }
         .buttonStyle(.plain)
     }

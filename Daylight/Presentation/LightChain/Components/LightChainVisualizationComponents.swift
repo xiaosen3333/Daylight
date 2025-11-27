@@ -44,12 +44,10 @@ struct LightChainPrimaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(NSLocalizedString("lightchain.card.title", comment: "Light chain header"))
-                .font(DaylightTypography.display)
-                .foregroundColor(DaylightColors.glowGold)
+                .daylight(.display, color: DaylightColors.glowGold)
 
             Text(NSLocalizedString("lightchain.card.subtitle", comment: "Light chain subtitle"))
-                .font(DaylightTypography.headline)
-                .foregroundColor(DaylightColors.glowGold)
+                .daylight(.headline, color: DaylightColors.glowGold)
                 .lineSpacing(6)
 
             HStack(spacing: 30) {
@@ -77,15 +75,12 @@ struct LightChainPrimaryCard: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .lastTextBaseline, spacing: 8) {
                 Text("\(value)")
-                    .font(DaylightTypography.streakNumber)
-                    .foregroundColor(DaylightColors.glowGold)
+                    .daylight(.streakNumber, color: DaylightColors.glowGold)
                 Text(NSLocalizedString("lightchain.card.days", comment: "Days suffix"))
-                    .font(DaylightTypography.subhead)
-                    .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
+                    .daylight(.subhead, color: DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
             }
             Text(label)
-                .font(DaylightTypography.bodyLarge)
-                .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
+                .daylight(.bodyLarge, color: DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
         }
     }
 
@@ -126,8 +121,7 @@ struct LightChainStreakCalendarCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(NSLocalizedString("lightchain.card.calendar.title", comment: "Streak calendar title"))
-                .font(DaylightTypography.headline)
-                .foregroundColor(DaylightColors.glowGold)
+                .daylight(.headline, color: DaylightColors.glowGold)
 
             HStack(spacing: 12) {
                 Button { changeMonth(by: -1) } label: {
@@ -139,8 +133,7 @@ struct LightChainStreakCalendarCard: View {
                 }
                 Spacer(minLength: 12)
                 Text(monthTitle(month))
-                    .font(DaylightTypography.body2Medium)
-                    .foregroundColor(DaylightColors.glowGold.opacity(0.92))
+                    .daylight(.body2Medium, color: DaylightColors.glowGold.opacity(0.92))
                     .padding(.horizontal, 10)
                 Spacer(minLength: 12)
                 Button { changeMonth(by: 1) } label: {
@@ -187,8 +180,7 @@ struct LightChainStreakCalendarCard: View {
         return HStack(spacing: 8) {
             ForEach(symbols, id: \.self) { day in
                 Text(day)
-                    .font(DaylightTypography.caption1)
-                    .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
+                    .daylight(.caption1, color: DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -218,8 +210,7 @@ struct LightChainStreakCalendarCard: View {
             onSelect(record)
         } label: {
             Text(cell.dayString)
-                .font(DaylightTypography.footnoteSemibold)
-                .foregroundColor(style.text)
+                .daylight(.footnoteSemibold, color: style.text)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
                 .background(
@@ -416,37 +407,30 @@ struct DayRecordStatusCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(formattedDate(record.date))
-                .font(DaylightTypography.caption1Medium)
-                .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                .daylight(.caption1Medium, color: .white.opacity(DaylightTextOpacity.secondary))
             Text(title(for: status))
-                .font(DaylightTypography.headline)
-                .foregroundColor(DaylightColors.glowGold)
+                .daylight(.headline, color: DaylightColors.glowGold)
             Text(description(for: status))
-                .font(DaylightTypography.footnote)
-                .foregroundColor(.white.opacity(0.85))
+                .daylight(.footnote, color: .white.opacity(0.85))
 
             if !isFuture {
                 if status != .off {
                     Text(commitmentLine())
-                        .font(DaylightTypography.footnoteMedium)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                        .daylight(.footnoteMedium, color: .white.opacity(DaylightTextOpacity.primary))
                         .lineLimit(3)
                 } else {
                     Text(NSLocalizedString("record.card.commitment.empty", comment: "No commitment"))
-                        .font(DaylightTypography.footnote)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                        .daylight(.footnote, color: .white.opacity(DaylightTextOpacity.secondary))
                 }
 
                 if let sleep = sleepLine() {
                     Text(sleep)
-                        .font(DaylightTypography.footnote)
-                        .foregroundColor(.white.opacity(0.85))
+                        .daylight(.footnote, color: .white.opacity(0.85))
                 }
 
                 if let reject = rejectLine() {
                     Text(reject)
-                        .font(DaylightTypography.footnote)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                        .daylight(.footnote, color: .white.opacity(DaylightTextOpacity.secondary))
                 }
             }
         }

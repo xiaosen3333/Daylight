@@ -11,16 +11,14 @@ struct DeveloperToolsPage: View {
 
             VStack(spacing: 24) {
                 Text(NSLocalizedString("dev.title", comment: ""))
-                    .font(DaylightTypography.devTitle)
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                    .daylight(.devTitle)
                     .padding(.top, 40)
 
                 Button {
                     Task { await viewModel.triggerDayReminderNow() }
                 } label: {
                     Text(NSLocalizedString("dev.trigger.day", comment: ""))
-                        .font(DaylightTypography.callout)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                        .daylight(.callout, color: .white.opacity(DaylightTextOpacity.primary))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(DaylightColors.bgOverlay15)
@@ -32,8 +30,7 @@ struct DeveloperToolsPage: View {
                     Task { await viewModel.triggerNightReminderNow() }
                 } label: {
                     Text(NSLocalizedString("dev.trigger.night", comment: ""))
-                        .font(DaylightTypography.callout)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                        .daylight(.callout, color: .white.opacity(DaylightTextOpacity.primary))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(DaylightColors.bgOverlay15)
@@ -47,7 +44,7 @@ struct DeveloperToolsPage: View {
                     dismiss()
                 } label: {
                     Text(NSLocalizedString("common.cancel", comment: ""))
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                        .daylight(.body2, color: .white.opacity(DaylightTextOpacity.primary))
                         .padding(.vertical, 12)
                         .padding(.horizontal, 20)
                         .background(DaylightColors.bgOverlay10)

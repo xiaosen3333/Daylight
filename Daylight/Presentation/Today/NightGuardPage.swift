@@ -13,16 +13,17 @@ struct NightGuardPage: View {
                         .padding(.top, 120) // 下移到与白天承诺页相近的位置
 
                     Text(NSLocalizedString("night.title", comment: ""))
-                        .multilineTextAlignment(.center)
-                        .font(DaylightTypography.display)
-                        .foregroundColor(DaylightColors.glowGold.opacity(DaylightTextOpacity.primary))
+                        .daylight(.display,
+                                  color: DaylightColors.glowGold.opacity(DaylightTextOpacity.primary),
+                                  alignment: .center,
+                                  lineLimit: 2)
                         .padding(.horizontal, 24)
                         .padding(.top, 8)
 
                     Text(viewModel.state.record?.commitmentText ?? NSLocalizedString("night.subtitle.placeholder", comment: ""))
-                        .multilineTextAlignment(.center)
-                        .font(DaylightTypography.body)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                        .daylight(.body,
+                                  color: .white.opacity(DaylightTextOpacity.secondary),
+                                  alignment: .center)
                         .padding(.horizontal, 24)
 
                     DaylightSecondaryButton(

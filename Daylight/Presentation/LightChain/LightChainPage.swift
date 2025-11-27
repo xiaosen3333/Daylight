@@ -92,11 +92,9 @@ struct LightChainPage: View {
                     .frame(width: 110, height: 110)
             }
             Text(NSLocalizedString("lightchain.title", comment: ""))
-                .font(DaylightTypography.title3)
-                .foregroundColor(DaylightColors.calendarText)
+                .daylight(.title3, color: DaylightColors.calendarText)
             Text(NSLocalizedString("lightchain.subtitle", comment: ""))
-                .font(DaylightTypography.body2Medium)
-                .foregroundColor(.white.opacity(0.85))
+                .daylight(.body2Medium, color: .white.opacity(0.85))
             HStack(spacing: 10) {
                 ForEach(0..<5) { index in
                     Circle()
@@ -122,8 +120,7 @@ struct LightChainPage: View {
                 }
                 Spacer()
                 Text(monthTitle(currentMonth))
-                    .font(DaylightTypography.callout)
-                    .foregroundColor(DaylightColors.calendarMonth)
+                    .daylight(.callout, color: DaylightColors.calendarMonth)
                 Spacer()
                 Button { changeMonth(by: 1) } label: {
                     Image(systemName: "chevron.right")
@@ -159,8 +156,7 @@ struct LightChainPage: View {
         HStack {
             ForEach(weekdaySymbols, id: \.self) { day in
                 Text(day)
-                    .font(DaylightTypography.caption2)
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.tertiary))
+                    .daylight(.caption2, color: .white.opacity(DaylightTextOpacity.tertiary))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -204,8 +200,7 @@ struct LightChainPage: View {
         } label: {
             VStack {
                 Text(day.dayString)
-                    .font(DaylightTypography.caption1)
-                    .foregroundColor(status.textColor)
+                    .daylight(.caption1, color: status.textColor)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(
@@ -239,11 +234,9 @@ struct LightChainPage: View {
         let longest = viewModel.state.streak?.longest ?? 0
         return VStack(alignment: .leading, spacing: 14) {
             Text(NSLocalizedString("lightchain.streak.title", comment: ""))
-                .font(DaylightTypography.headline)
-                .foregroundColor(DaylightColors.glowGold)
+                .daylight(.headline, color: DaylightColors.glowGold)
             Text(String(format: NSLocalizedString("lightchain.streak.subtitle", comment: ""), current, longest))
-                .font(DaylightTypography.footnoteMedium)
-                .foregroundColor(.white.opacity(0.85))
+                .daylight(.footnoteMedium, color: .white.opacity(0.85))
             HStack(spacing: 14) {
                 streakPill(value: current)
                 streakPill(value: longest)
@@ -268,8 +261,7 @@ struct LightChainPage: View {
                 }
             }
             Text("\(value)")
-                .font(DaylightTypography.body2Medium)
-                .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                .daylight(.body2Medium, color: .white.opacity(DaylightTextOpacity.primary))
         }
         .frame(maxWidth: .infinity)
     }
@@ -278,34 +270,27 @@ struct LightChainPage: View {
         let record = selectedRecord
         return VStack(alignment: .leading, spacing: 12) {
             Text(NSLocalizedString("lightchain.detail.title", comment: ""))
-                .font(DaylightTypography.headline)
-                .foregroundColor(DaylightColors.glowGold)
+                .daylight(.headline, color: DaylightColors.glowGold)
             if let record = record {
                 Text(formattedDate(record))
-                    .font(DaylightTypography.caption1Medium)
-                    .foregroundColor(.white.opacity(0.85))
+                    .daylight(.caption1Medium, color: .white.opacity(0.85))
                 if let text = record.commitmentText, !text.isEmpty {
                     Text(text)
-                        .font(DaylightTypography.body2Medium)
-                        .foregroundColor(.white.opacity(0.92))
+                        .daylight(.body2Medium, color: .white.opacity(0.92))
                 } else {
                     Text(NSLocalizedString("lightchain.detail.empty", comment: ""))
-                        .font(DaylightTypography.body2Medium)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.muted))
+                        .daylight(.body2Medium, color: .white.opacity(DaylightTextOpacity.muted))
                 }
                 if let sleep = record.sleepConfirmedAt {
                     let time = viewModel.dateHelper.shortTimeFormatter.string(from: sleep)
                     Text(String(format: NSLocalizedString("lightchain.detail.sleep", comment: ""), time))
-                        .font(DaylightTypography.caption1Medium)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                        .daylight(.caption1Medium, color: .white.opacity(DaylightTextOpacity.secondary))
                 }
                 Text(String(format: NSLocalizedString("lightchain.detail.reject", comment: ""), record.nightRejectCount))
-                    .font(DaylightTypography.caption1Medium)
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.caption1Medium, color: .white.opacity(DaylightTextOpacity.secondary))
             } else {
                 Text(NSLocalizedString("lightchain.detail.empty", comment: ""))
-                    .font(DaylightTypography.body2Medium)
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.tertiary))
+                    .daylight(.body2Medium, color: .white.opacity(DaylightTextOpacity.tertiary))
             }
         }
         .padding(18)

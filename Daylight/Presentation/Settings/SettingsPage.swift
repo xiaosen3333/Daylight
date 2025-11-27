@@ -86,12 +86,11 @@ struct SettingsPage: View {
     private var profileSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(NSLocalizedString("settings.profile.section", comment: ""))
-                .font(DaylightTypography.subheadSemibold)
-                .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                .daylight(.subheadSemibold, color: .white.opacity(DaylightTextOpacity.primary))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(NSLocalizedString("settings.profile.nickname", comment: ""))
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary))
                 TextField(NSLocalizedString("settings.profile.nickname.placeholder", comment: ""), text: $nickname)
                     .foregroundColor(.white)
                     .padding(.vertical, 10)
@@ -117,12 +116,11 @@ struct SettingsPage: View {
     private var reminderSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(NSLocalizedString("settings.reminder.section", comment: ""))
-                .font(DaylightTypography.subheadSemibold)
-                .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                .daylight(.subheadSemibold, color: .white.opacity(DaylightTextOpacity.primary))
 
             HStack {
                 Text(NSLocalizedString("settings.day.time", comment: ""))
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary))
                 Spacer()
                 DatePicker("", selection: $dayReminder, displayedComponents: .hourAndMinute)
                     .labelsHidden()
@@ -131,13 +129,13 @@ struct SettingsPage: View {
 
             Toggle(isOn: $nightEnabled) {
                 Text(NSLocalizedString("settings.night.enable", comment: ""))
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary))
             }
             .toggleStyle(SwitchToggleStyle(tint: DaylightColors.glowGold))
 
             HStack {
                 Text(NSLocalizedString("settings.night.start", comment: ""))
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary))
                 Spacer()
                 DatePicker("", selection: $nightStart, displayedComponents: .hourAndMinute)
                     .labelsHidden()
@@ -146,7 +144,7 @@ struct SettingsPage: View {
 
             HStack {
                 Text(NSLocalizedString("settings.night.end", comment: ""))
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary))
                 Spacer()
                 DatePicker("", selection: $nightEnd, displayedComponents: .hourAndMinute)
                     .labelsHidden()
@@ -155,11 +153,13 @@ struct SettingsPage: View {
 
             HStack {
                 Text(NSLocalizedString("settings.night.interval", comment: ""))
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.secondary))
                 Spacer()
                 Picker("", selection: $nightInterval) {
                     ForEach(intervals, id: \.self) { value in
-                        Text("\(value) min").tag(value)
+                        Text("\(value) min")
+                            .daylight(.body2, color: .white.opacity(DaylightTextOpacity.primary))
+                            .tag(value)
                     }
                 }
                 .pickerStyle(.menu)
@@ -169,17 +169,15 @@ struct SettingsPage: View {
             Toggle(isOn: $showCommitmentInNotification) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("settings.notification.showCommitment", comment: ""))
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                        .daylight(.body2, color: .white.opacity(DaylightTextOpacity.primary))
                     Text(NSLocalizedString("settings.notification.showCommitment.desc", comment: ""))
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.tertiary))
-                        .font(DaylightTypography.caption)
+                        .daylight(.caption, color: .white.opacity(DaylightTextOpacity.tertiary))
                 }
             }
             .toggleStyle(SwitchToggleStyle(tint: DaylightColors.glowGold))
             if let warning = nightWindowWarning {
                 Text(warning)
-                    .font(DaylightTypography.caption)
-                    .foregroundColor(DaylightColors.statusError)
+                    .daylight(.caption, color: DaylightColors.statusError)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -191,8 +189,7 @@ struct SettingsPage: View {
     private var languageSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(NSLocalizedString("settings.language.section", comment: ""))
-                .font(DaylightTypography.subheadSemibold)
-                .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                .daylight(.subheadSemibold, color: .white.opacity(DaylightTextOpacity.primary))
             Picker("", selection: Binding<String>(
                 get: { currentLanguageSelection() },
                 set: { newValue in
@@ -200,9 +197,15 @@ struct SettingsPage: View {
                     viewModel.setLanguage(code)
                 }
             )) {
-                Text(NSLocalizedString("settings.language.system", comment: "")).tag("system")
-                Text("中文").tag("zh-Hans")
-                Text("English").tag("en")
+                Text(NSLocalizedString("settings.language.system", comment: ""))
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.primary))
+                    .tag("system")
+                Text("中文")
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.primary))
+                    .tag("zh-Hans")
+                Text("English")
+                    .daylight(.body2, color: .white.opacity(DaylightTextOpacity.primary))
+                    .tag("en")
             }
             .pickerStyle(.segmented)
         }
@@ -214,8 +217,7 @@ struct SettingsPage: View {
     private var devSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(NSLocalizedString("settings.dev.section", comment: ""))
-                .font(DaylightTypography.subheadSemibold)
-                .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
+                .daylight(.subheadSemibold, color: .white.opacity(DaylightTextOpacity.primary))
 
             DaylightGhostButton(title: NSLocalizedString("dev.trigger.day", comment: "")) {
                 Task { await viewModel.triggerDayReminderNow() }
@@ -282,12 +284,10 @@ struct SettingsPage: View {
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
                 Text(info.title)
-                    .foregroundColor(.white.opacity(DaylightTextOpacity.primary))
-                    .font(DaylightTypography.footnoteSemibold)
+                    .daylight(.footnoteSemibold, color: .white.opacity(DaylightTextOpacity.primary))
                 if let detail = info.detail {
                     Text(detail)
-                        .foregroundColor(.white.opacity(DaylightTextOpacity.tertiary))
-                        .font(DaylightTypography.caption)
+                        .daylight(.caption, color: .white.opacity(DaylightTextOpacity.tertiary))
                 }
             }
             Spacer()
@@ -296,8 +296,7 @@ struct SettingsPage: View {
                     Task { await viewModel.retrySettingsSync() }
                 } label: {
                     Text(NSLocalizedString("settings.sync.retry", comment: ""))
-                        .font(DaylightTypography.footnoteSemibold)
-                        .foregroundColor(info.color)
+                        .daylight(.footnoteSemibold, color: info.color)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(DaylightColors.bgOverlay08)
