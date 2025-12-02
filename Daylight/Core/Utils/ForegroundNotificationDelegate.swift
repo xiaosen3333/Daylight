@@ -18,9 +18,13 @@ final class ForegroundNotificationDelegate: NSObject, UNUserNotificationCenterDe
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         if let deeplink = response.notification.request.content.userInfo["deeplink"] as? String {
+            var info: [String: String] = ["deeplink": deeplink]
+            if let dayKey = response.notification.request.content.userInfo["dayKey"] as? String {
+                info["dayKey"] = dayKey
+            }
             NotificationCenter.default.post(name: .daylightNavigate,
                                             object: nil,
-                                            userInfo: ["deeplink": deeplink])
+                                            userInfo: info)
         }
         completionHandler()
     }

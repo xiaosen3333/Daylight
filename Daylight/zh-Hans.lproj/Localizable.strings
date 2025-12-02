@@ -8,6 +8,10 @@
 "home.button" = "留一句给今晚";
 "home.button.day" = "查看我写下的话";
 "home.button.sleep" = "我要睡觉啦";
+"home.button.sleep.early" = "我想早点睡啦";
+"home.button.sleep.expired" = "今晚守护已收工";
+"home.cta.early.hint" = "早点休息，也是在守住今晚";
+"home.cta.expired.hint" = "今晚已过最晚入睡时间，早点睡吧";
 
 "notification.day.title" = "为今晚的你留一句话";
 "notification.day.body" = "如果今晚不熬夜，你会得到什么？";
@@ -75,6 +79,19 @@
 "night.title" = "白天的你在提醒你";
 "night.subtitle.placeholder" = "这是你留给自己的话";
 "night.button" = "我准备睡觉了";
+"night.button.early" = "我准备睡啦";
+"night.button.continue" = "还有点事要处理";
+"night.button.home" = "回首页";
+"night.button.adjust" = "调整提醒时间";
+"night.hint.dayKey" = "这是 %@ 的提醒";
+"night.state.expired.title" = "今晚守护已结束";
+"night.state.completed.title" = "今晚守护已完成";
+"night.state.notReady.title" = "先点亮白昼之灯";
+"night.hint.expired" = "今晚已经超过最晚入睡时间啦，明天早点休息。";
+"night.hint.completed" = "今晚的夜灯已经亮起，谢谢你守住这份温柔。";
+"night.hint.notReady" = "先点亮白昼之灯，今晚的守护才算开始。";
+"night.hint.tooEarly" = "天还没黑呢，太累了就稍微休息一会儿吧";
+"night.hint.early" = "比平时更早休息，也是兑现对自己的温柔。";
 
 
 "dev.title" = "开发者工具";

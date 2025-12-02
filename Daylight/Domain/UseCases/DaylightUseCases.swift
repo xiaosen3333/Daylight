@@ -78,19 +78,38 @@ final class ConfirmSleepUseCase {
         self.dateHelper = dateHelper
     }
 
-    func execute(userId: String, settings: Settings) async throws -> DayRecord {
-        let dateString = dateHelper.localDayString(nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
-        guard var record = try await dayRecordRepository.record(for: dateString, userId: userId) else {
-            throw DomainError.notFound
-        }
+    func execute(userId: String,
+                 settings: Settings,
+                 allowEarly: Bool = false,
+                 dayKey: String? = nil,
+                 now: Date = Date()) async throws -> DayRecord {
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: dayKey)
+        var record = try await dayRecordRepository.record(for: timeline.dayKey, userId: userId)
+            ?? defaultRecord(for: userId, date: timeline.dayKey)
 
         guard record.dayLightStatus == .on else {
-            throw DomainError.invalidState("还未点亮白昼之灯")
+            throw DomainError.invalidState("先点亮白昼之灯，今晚才能守护。")
         }
         guard record.nightLightStatus == .off else {
             throw DomainError.invalidState("夜间守护已完成")
         }
-        let now = Date()
+
+        if now < timeline.earlyStart {
+            let timeText = dateHelper.displayTimeString(from: timeline.earlyStart)
+            throw DomainError.invalidState("还没到今晚提醒时间 \(timeText)，稍后再来。")
+        }
+
+        let inWindow = now >= timeline.nightStart && now <= timeline.nightEnd
+        let inEarly = allowEarly && now >= timeline.earlyStart && now < timeline.nightStart
+        guard inWindow || inEarly else {
+            if now > timeline.nightEnd || now >= timeline.cutoff {
+                throw DomainError.invalidState("已超过最晚入睡时间，今晚守护已结束")
+            } else {
+                let timeText = dateHelper.displayTimeString(from: timeline.nightStart)
+                throw DomainError.invalidState("还没到今晚提醒时间 \(timeText)，稍后再来。")
+            }
+        }
+
         record.nightLightStatus = .on
         record.sleepConfirmedAt = now
         record.updatedAt = now
@@ -109,19 +128,29 @@ final class RejectNightUseCase {
         self.dateHelper = dateHelper
     }
 
-    func execute(userId: String, settings: Settings) async throws -> DayRecord {
-        let dateString = dateHelper.localDayString(nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
-        guard var record = try await dayRecordRepository.record(for: dateString, userId: userId) else {
-            throw DomainError.notFound
-        }
+    func execute(userId: String,
+                 settings: Settings,
+                 dayKey: String? = nil,
+                 now: Date = Date()) async throws -> DayRecord {
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: dayKey)
+        var record = try await dayRecordRepository.record(for: timeline.dayKey, userId: userId)
+            ?? defaultRecord(for: userId, date: timeline.dayKey)
         guard record.dayLightStatus == .on else {
-            throw DomainError.invalidState("还未点亮白昼之灯")
+            throw DomainError.invalidState("先点亮白昼之灯，今晚才能守护。")
         }
         guard record.nightLightStatus == .off else {
             throw DomainError.invalidState("夜间守护已完成")
         }
+
+        if now < timeline.nightStart {
+            let timeText = dateHelper.displayTimeString(from: timeline.nightStart)
+            throw DomainError.invalidState("还没到今晚提醒时间 \(timeText)，稍后再来。")
+        }
+        if now > timeline.nightEnd || now >= timeline.cutoff {
+            throw DomainError.invalidState("已超过最晚入睡时间，今晚守护已结束")
+        }
         record.nightRejectCount += 1
-        record.updatedAt = Date()
+        record.updatedAt = now
         record.version += 1
         try await dayRecordRepository.upsert(record, userId: userId)
         return record

@@ -1,5 +1,56 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.0）
+- 目的：落地夜间守护多态（早睡/窗口/过期/已完成）与时间窗口规则，CTA/通知/用例统一按 dayKey 运转，提前睡觉也可点亮夜灯并清除当晚夜间提醒。
+- 范围：Today 夜间入口与夜页多态展示、通知 deeplink dayKey 透传、ConfirmSleep/RejectNight 判定与错误文案、夜窗/早睡窗口/截止时间计算与调度刷新；不触碰非夜间相关模块。
+- 影响面：Today 主 CTA 露出与文案、NightGuard 页交互与提示、夜间提醒清理与 dayKey 选择、夜灯点亮/拒绝次数写入逻辑；白昼灯/提醒设置/LightChain 其他功能保持不变。
+- 验收要点：早睡窗口可点亮夜灯且夜间提醒被清；窗口内可点亮或累加“继续玩”；过期仅弱化 CTA，截止后不再露出；点击昨日夜间通知不会点亮今日夜灯且显示“昨天的提醒”；修改夜窗即时刷新 CTA；xcodebuild 通过。
+
+### ASCII 原型（Today CTA 多态）
+```
+[Today @18:30, 日灯ON/夜灯OFF, earlyStart<=now<nightStart]
+承诺片段
+[ 我准备睡啦 ]          ← 早睡入口
+hint: 比计划早睡也算守护今晚
+
+[Today @22:45, 窗口内]
+承诺片段
+[ 我要睡觉啦 ]
+
+[Today 00:40, 过期且<05:00]
+承诺片段
+[ 今晚守护已结束 ]  (弱化)
+hint: 已超过最晚入睡时间
+```
+
+### ASCII 原型（NightGuard 多态）
+```
+[NightGuard - 早睡]
+承诺全文
+比平时早睡，也算兑现承诺。
+[ 我准备睡啦 ]
+
+[NightGuard - 窗口内]
+承诺全文
+[ 我准备睡觉了 ]   [ 继续玩手机 ]
+
+[NightGuard - 过期]
+今晚守护已结束，下次早点休息。
+[ 回首页 ]   [ 调整提醒时间 ]
+
+[NightGuard - 已完成]
+今晚守护已完成。
+[ 回首页 ]
+
+（若 dayKey≠当前日，顶部提示“这是 X 日的提醒”）
+```
+
+### 技术架构与要点更新
+- 时间窗口：复用 DaylightDateHelper 解析分钟，新增早睡起点 `earlyStart=max(dayReminder+6h,17:00)`、夜窗 `[nightStart, nightEnd]` 与绝对截止 `cutoff=次日05:00` 计算，统一输出状态（未到/早睡/窗口/过期/已完成）。
+- 用例收敛：ConfirmSleepUseCase 支持 allowEarly + 自定义 dayKey，未到/过期返回明确错误文案，找不到记录时按 dayKey 创建默认记录并写入；RejectNightUseCase 仅窗口内允许累加。
+- CTA/页面：TodayViewModel 基于上述状态控制 CTA 露出/文案；NightGuardPage 根据状态切换按钮组与文案，dayKey 不同时追加“这是 X 日的提醒”提示。
+- 通知：夜间通知 userInfo 携带 dayKey；delegate 透传 dayKey 至 Today/NightGuard；早睡或夜灯完成后清除当晚夜间提醒，过窗/日界刷新时重新调度。
+
 ## 新版本更新（1.3.5）
 - 目的：时间显示与输入遵循系统 12/24 小时习惯，美国等 12 小时地区自动展示 AM/PM，存储/调度仍使用 24 小时标准以兼容既有数据与服务端。
 - 范围：`DaylightDateHelper` 统一存储/展示格式器与解析；Settings 时间选择、LightChain 详情睡眠时间展示；通知调度时间解析兜底；不改数据模型与日界/通知逻辑。

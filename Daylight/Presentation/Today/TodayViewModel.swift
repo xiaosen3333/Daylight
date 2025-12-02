@@ -16,6 +16,35 @@ final class TodayViewModel: ObservableObject {
         case synced
     }
 
+    enum NightGuardPhase {
+        case notEligible
+        case beforeEarly
+        case early
+        case inWindow
+        case expired
+        case completed
+        case afterCutoff
+    }
+
+    struct NightGuardContext {
+        let dayKey: String
+        let record: DayRecord
+        let timeline: NightTimeline
+        let phase: NightGuardPhase
+
+        var allowEarlyConfirm: Bool { phase == .early }
+        var canReject: Bool { phase == .inWindow }
+        var isExpired: Bool { phase == .expired || phase == .afterCutoff }
+        var showHomeCTA: Bool {
+            switch phase {
+            case .early, .inWindow, .expired:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
     struct UIState {
         var isLoading: Bool = false
         var isSavingCommitment: Bool = false
@@ -35,6 +64,7 @@ final class TodayViewModel: ObservableObject {
     @Published var nickname: String = ""
     @Published var showNotificationPrompt: Bool = false
     @Published var settingsSyncState: SettingsSyncState = .idle
+    @Published var nightDayKey: String?
 
     private let userRepository: UserRepository
     private let loadTodayState: LoadTodayStateUseCase
@@ -143,13 +173,21 @@ final class TodayViewModel: ObservableObject {
         state.isSavingCommitment = false
     }
 
-    func confirmSleepNow() async {
+    func confirmSleepNow(allowEarly: Bool = false, dayKey: String? = nil) async {
         guard let user = user, let settings = state.settings else { return }
+        let targetDayKey = dayKey ?? nightDayKey ?? state.record?.date ?? todayKey()
+        let now = Date()
         state.isSavingNight = true
         state.errorMessage = nil
         do {
-            let record = try await confirmSleep.execute(userId: user.id, settings: settings)
-            state.record = record
+            let record = try await confirmSleep.execute(userId: user.id,
+                                                        settings: settings,
+                                                        allowEarly: allowEarly,
+                                                        dayKey: targetDayKey,
+                                                        now: now)
+            if state.record == nil || state.record?.date == record.date {
+                state.record = record
+            }
             state.toastMessage = "夜间守护已完成"
             try await refreshLightChain()
             try await refreshStreak()
@@ -160,12 +198,21 @@ final class TodayViewModel: ObservableObject {
         state.isSavingNight = false
     }
 
-    func rejectNightOnce() async {
+    func rejectNightOnce(dayKey: String? = nil) async {
         guard let user = user, let settings = state.settings else { return }
+        let targetDayKey = dayKey ?? nightDayKey ?? state.record?.date ?? todayKey()
+        let now = Date()
         state.errorMessage = nil
+        state.isSavingNight = true
+        defer { state.isSavingNight = false }
         do {
-            let record = try await rejectNight.execute(userId: user.id, settings: settings)
-            state.record = record
+            let record = try await rejectNight.execute(userId: user.id,
+                                                       settings: settings,
+                                                       dayKey: targetDayKey,
+                                                       now: now)
+            if state.record == nil || state.record?.date == record.date {
+                state.record = record
+            }
             state.toastMessage = "继续玩手机已记录"
             try await refreshLightChain()
             try await refreshStreak()
@@ -175,12 +222,25 @@ final class TodayViewModel: ObservableObject {
         }
     }
 
-    func shouldShowNightCTA(now: Date = Date()) -> Bool {
-        guard let record = state.record, let settings = state.settings else { return false }
-        guard record.dayLightStatus == .on, record.nightLightStatus == .off else { return false }
+    func nightGuardContext(now: Date = Date(), dayKeyOverride: String? = nil) -> NightGuardContext? {
+        guard let settings = state.settings, let userId = currentUserId else { return nil }
+        let targetDayKey = dayKeyOverride ?? state.record?.date ?? todayKey(for: now)
+        let record = record(for: targetDayKey, userId: userId)
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: targetDayKey)
+        let phase = nightPhase(for: record, timeline: timeline)
+        return NightGuardContext(dayKey: targetDayKey, record: record, timeline: timeline, phase: phase)
+    }
 
-        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
-        return dateHelper.isInNightWindow(now, window: window) && settings.nightReminderEnabled
+    func nightCTAContext(now: Date = Date()) -> NightGuardContext? {
+        guard let context = nightGuardContext(now: now) else { return nil }
+        guard state.settings?.nightReminderEnabled == true else { return nil }
+        guard context.showHomeCTA else { return nil }
+        guard context.phase != .afterCutoff else { return nil }
+        return context
+    }
+
+    func shouldShowNightCTA(now: Date = Date()) -> Bool {
+        nightCTAContext(now: now) != nil
     }
 
     func todayKey(for reference: Date = Date()) -> String {
@@ -194,6 +254,48 @@ final class TodayViewModel: ObservableObject {
     func todayDate(for reference: Date = Date()) -> Date {
         let key = todayKey(for: reference)
         return dateHelper.dayFormatter.date(from: key) ?? reference
+    }
+
+    func prepareNightPage(dayKey: String? = nil) {
+        if let dayKey {
+            nightDayKey = dayKey
+        } else {
+            nightDayKey = state.record?.date ?? todayKey()
+        }
+    }
+
+    private func nightPhase(for record: DayRecord, timeline: NightTimeline) -> NightGuardPhase {
+        if record.nightLightStatus == .on {
+            return .completed
+        }
+        if record.dayLightStatus != .on {
+            return .notEligible
+        }
+        switch timeline.phase {
+        case .afterCutoff:
+            return .afterCutoff
+        case .expiredBeforeCutoff:
+            return .expired
+        case .inWindow:
+            return .inWindow
+        case .early:
+            return .early
+        case .beforeEarlyStart:
+            return .beforeEarly
+        }
+    }
+
+    private func record(for dayKey: String, userId: String) -> DayRecord {
+        if let record = state.record, record.date == dayKey {
+            return record
+        }
+        if let match = lightChain.first(where: { $0.date == dayKey }) {
+            return match
+        }
+        if let match = monthRecords.first(where: { $0.date == dayKey }) {
+            return match
+        }
+        return defaultRecord(for: userId, date: dayKey)
     }
 
     /// 按夜窗重新归一化当月记录，必要时填充当天默认记录，避免 UI 重复实现。
@@ -321,8 +423,16 @@ final class TodayViewModel: ObservableObject {
         applySyncSnapshot(snapshot)
     }
 
-    func navigateToNightPage() {
-        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: ["deeplink": "night"])
+    func navigateToNightPage(dayKey: String? = nil) {
+        var info: [String: String] = ["deeplink": "night"]
+        if let dayKey {
+            info["dayKey"] = dayKey
+        }
+        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: info)
+    }
+
+    func navigateToSettingsPage() {
+        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: ["deeplink": "settings"])
     }
 
     func setLanguage(_ code: String?) {

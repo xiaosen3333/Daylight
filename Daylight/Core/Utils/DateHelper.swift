@@ -5,6 +5,33 @@ struct NightWindow {
     let end: String
 }
 
+struct NightTimeline {
+    enum Phase {
+        case beforeEarlyStart
+        case early
+        case inWindow
+        case expiredBeforeCutoff
+        case afterCutoff
+    }
+
+    let dayKey: String
+    let earlyStart: Date
+    let nightStart: Date
+    let nightEnd: Date
+    let cutoff: Date
+    let now: Date
+    let phase: Phase
+
+    var isExpired: Bool {
+        switch phase {
+        case .expiredBeforeCutoff, .afterCutoff:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 struct DaylightDateHelper {
     struct ParsedNightWindow {
         let startMinutes: Int
@@ -207,5 +234,64 @@ struct DaylightDateHelper {
         }
         // 最后兜底，避免默认值异常导致崩溃
         return ParsedNightWindow(startMinutes: 22 * 60 + 30, endMinutes: 30, crossesMidnight: true)
+    }
+
+    func nightTimeline(settings: Settings, now: Date = Date(), dayKeyOverride: String? = nil) -> NightTimeline {
+        var cal = calendar
+        cal.timeZone = timeZone
+
+        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
+        let parsedWindow = parsedOrDefault(window)
+        let effectiveDayKey = dayKeyOverride ?? localDayString(for: now, nightWindow: window)
+        let dayStart = dayFormatter.date(from: effectiveDayKey) ?? cal.startOfDay(for: now)
+
+        let nightStart = date(fromDayStart: dayStart, minutesIntoDay: parsedWindow.startMinutes)
+        let nightEndDayOffset = parsedWindow.crossesMidnight ? 1 : 0
+        let nightEnd = date(fromDayStart: dayStart,
+                            minutesIntoDay: parsedWindow.endMinutes,
+                            dayOffset: nightEndDayOffset)
+
+        let dayReminderMinutes = minutes(for: settings.dayReminderTime) ?? 10 * 60
+        let earlyCandidate = dayReminderMinutes + 6 * 60
+        let earlyStartMinutes = max(earlyCandidate, 17 * 60)
+        let earlyStart = date(fromDayStart: dayStart, minutesIntoDay: earlyStartMinutes)
+
+        let cutoffBase = cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        let cutoff = cal.date(byAdding: .hour, value: 5, to: cutoffBase) ?? cutoffBase
+
+        let phase: NightTimeline.Phase
+        if now >= cutoff {
+            phase = .afterCutoff
+        } else if now > nightEnd {
+            phase = .expiredBeforeCutoff
+        } else if now >= nightStart {
+            phase = .inWindow
+        } else if now >= earlyStart {
+            phase = .early
+        } else {
+            phase = .beforeEarlyStart
+        }
+
+        return NightTimeline(dayKey: effectiveDayKey,
+                             earlyStart: earlyStart,
+                             nightStart: nightStart,
+                             nightEnd: nightEnd,
+                             cutoff: cutoff,
+                             now: now,
+                             phase: phase)
+    }
+
+    private func date(fromDayStart dayStart: Date, minutesIntoDay: Int, dayOffset: Int = 0) -> Date {
+        var cal = calendar
+        cal.timeZone = timeZone
+
+        var offset = minutesIntoDay
+        var days = dayOffset
+        while offset >= minutesPerDay {
+            offset -= minutesPerDay
+            days += 1
+        }
+        let base = cal.date(byAdding: .day, value: days, to: dayStart) ?? dayStart
+        return cal.date(byAdding: .minute, value: offset, to: base) ?? base
     }
 }

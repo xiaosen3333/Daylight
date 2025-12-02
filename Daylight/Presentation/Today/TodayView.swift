@@ -117,10 +117,14 @@ struct TodayView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .daylightNavigate)) { notification in
                 guard let deeplink = notification.userInfo?["deeplink"] as? String else { return }
+                let dayKey = notification.userInfo?["dayKey"] as? String
                 if deeplink == "day" {
                     showDayPage = true
                 } else if deeplink == "night" {
+                    viewModel.prepareNightPage(dayKey: dayKey)
                     showNightPage = true
+                } else if deeplink == "settings" {
+                    showSettingsPage = true
                 }
             }
             .alert("提示", isPresented: errorAlertBinding) {
@@ -361,15 +365,20 @@ struct TodayView: View {
         return .off
     }
 
+    private var nightCTAContext: TodayViewModel.NightGuardContext? {
+        viewModel.nightCTAContext()
+    }
+
     private var showSleepCTA: Bool {
-        viewModel.shouldShowNightCTA()
+        nightCTAContext != nil
     }
 
     private var sleepCTAButton: some View {
-        DaylightPrimaryButton(title: NSLocalizedString("home.button.sleep", comment: "")) {
-            showNightPage = true
+        Group {
+            if let context = nightCTAContext {
+                nightCTAContent(for: context)
+            }
         }
-        .padding(.top, 4)
     }
 
     private var homeButtonTitle: String {
@@ -400,6 +409,66 @@ struct TodayView: View {
             return NSLocalizedString("home.subtitle.day", comment: "")
         case .both:
             return NSLocalizedString("home.subtitle.both", comment: "")
+        }
+    }
+
+    private func nightCTAConfig(for context: TodayViewModel.NightGuardContext) -> (title: String, hint: String?, usePrimary: Bool)? {
+        switch context.phase {
+        case .early:
+            return (NSLocalizedString("home.button.sleep.early", comment: ""), NSLocalizedString("home.cta.early.hint", comment: ""), true)
+        case .inWindow:
+            return (NSLocalizedString("home.button.sleep", comment: ""), nil, true)
+        case .expired:
+            return (NSLocalizedString("home.button.sleep.expired", comment: ""), NSLocalizedString("home.cta.expired.hint", comment: ""), false)
+        default:
+            return nil
+        }
+    }
+
+    private func commitmentPreview(for context: TodayViewModel.NightGuardContext, maxLength: Int = 32) -> String? {
+        guard let text = context.record.commitmentText?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else { return nil }
+        if text.count <= maxLength { return text }
+        let prefix = text.prefix(maxLength)
+        return "\(prefix)…"
+    }
+
+    private func openNight(with context: TodayViewModel.NightGuardContext) {
+        viewModel.prepareNightPage(dayKey: context.dayKey)
+        showNightPage = true
+    }
+
+    private func nightCTAContent(for context: TodayViewModel.NightGuardContext) -> some View {
+        Group {
+            if let config = nightCTAConfig(for: context) {
+                VStack(spacing: 6) {
+                    if let preview = commitmentPreview(for: context) {
+                        Text(preview)
+                            .daylight(.body,
+                                      color: .white.opacity(DaylightTextOpacity.secondary),
+                                      alignment: .center,
+                                      lineLimit: 2)
+                            .padding(.horizontal, 8)
+                    }
+
+                    if config.usePrimary {
+                        DaylightPrimaryButton(title: config.title) {
+                            openNight(with: context)
+                        }
+                    } else {
+                        DaylightSecondaryButton(title: config.title) {
+                            openNight(with: context)
+                        }
+                    }
+                    if let hint = config.hint {
+                        Text(hint)
+                            .daylight(.footnote,
+                                      color: .white.opacity(DaylightTextOpacity.secondary),
+                                      alignment: .center)
+                    }
+                }
+                .padding(.top, 4)
+            }
         }
     }
 
