@@ -40,15 +40,7 @@ struct NightGuardPage: View {
 
     @ViewBuilder
     private func content(for context: TodayViewModel.NightGuardContext) -> some View {
-        VStack(spacing: 16) {
-            if context.dayKey != viewModel.todayKey() {
-                Text(String(format: NSLocalizedString("night.hint.dayKey", comment: ""), context.dayKey))
-                    .daylight(.caption1,
-                              color: .white.opacity(DaylightTextOpacity.secondary),
-                              alignment: .center)
-                    .padding(.horizontal, 12)
-            }
-
+        VStack(spacing: 14) {
             Text(headline(for: context))
                 .daylight(.display,
                           color: DaylightColors.glowGold.opacity(DaylightTextOpacity.primary),
@@ -56,15 +48,9 @@ struct NightGuardPage: View {
                           lineLimit: 2)
                 .padding(.horizontal, 8)
 
-            Text(bodyText(for: context))
-                .daylight(.body,
-                          color: .white.opacity(DaylightTextOpacity.secondary),
-                          alignment: .center)
-                .padding(.horizontal, 8)
-
-            if let hint = secondaryHint(for: context) {
-                Text(hint)
-                    .daylight(.footnote,
+            if let body = bodyText(for: context) {
+                Text(body)
+                    .daylight(.body,
                               color: .white.opacity(DaylightTextOpacity.secondary),
                               alignment: .center)
                     .padding(.horizontal, 8)
@@ -95,26 +81,12 @@ struct NightGuardPage: View {
         }
     }
 
-    private func bodyText(for context: TodayViewModel.NightGuardContext) -> String {
+    private func bodyText(for context: TodayViewModel.NightGuardContext) -> String? {
         switch context.phase {
         case .early, .inWindow:
             return context.record.commitmentText ?? NSLocalizedString("night.subtitle.placeholder", comment: "")
-        case .completed:
-            return NSLocalizedString("night.hint.completed", comment: "")
-        case .expired, .afterCutoff:
-            return NSLocalizedString("night.hint.expired", comment: "")
         case .notEligible:
-            return NSLocalizedString("night.hint.notReady", comment: "")
-        case .beforeEarly:
-            let timeText = viewModel.dateHelper.displayTimeString(from: context.timeline.earlyStart)
-            return String(format: NSLocalizedString("night.hint.tooEarly", comment: ""), timeText)
-        }
-    }
-
-    private func secondaryHint(for context: TodayViewModel.NightGuardContext) -> String? {
-        switch context.phase {
-        case .early:
-            return NSLocalizedString("night.hint.early", comment: "")
+            return NSLocalizedString("night.subtitle.notReady", comment: "")
         default:
             return nil
         }
@@ -125,9 +97,10 @@ struct NightGuardPage: View {
         switch context.phase {
         case .early:
             VStack(spacing: 12) {
-                DaylightPrimaryButton(title: NSLocalizedString("night.button.early", comment: ""),
-                                      isEnabled: !viewModel.state.isSavingNight,
-                                      isLoading: viewModel.state.isSavingNight) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.early", comment: ""),
+                                  kind: .nightPrimary,
+                                  isEnabled: !viewModel.state.isSavingNight,
+                                  isLoading: viewModel.state.isSavingNight) {
                     Task {
                         await viewModel.confirmSleepNow(allowEarly: true, dayKey: context.dayKey)
                         if viewModel.state.errorMessage == nil {
@@ -138,9 +111,10 @@ struct NightGuardPage: View {
             }
         case .inWindow:
             VStack(spacing: 12) {
-                DaylightPrimaryButton(title: NSLocalizedString("night.button", comment: ""),
-                                      isEnabled: !viewModel.state.isSavingNight,
-                                      isLoading: viewModel.state.isSavingNight) {
+                DaylightCTAButton(title: NSLocalizedString("night.button", comment: ""),
+                                  kind: .nightPrimary,
+                                  isEnabled: !viewModel.state.isSavingNight,
+                                  isLoading: viewModel.state.isSavingNight) {
                     Task {
                         await viewModel.confirmSleepNow(dayKey: context.dayKey)
                         if viewModel.state.errorMessage == nil {
@@ -149,8 +123,9 @@ struct NightGuardPage: View {
                     }
                 }
 
-                DaylightSecondaryButton(title: NSLocalizedString("night.button.continue", comment: ""),
-                                        isEnabled: !viewModel.state.isSavingNight) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.continue", comment: ""),
+                                  kind: .nightPrimary,
+                                  isEnabled: !viewModel.state.isSavingNight) {
                     Task {
                         await viewModel.rejectNightOnce(dayKey: context.dayKey)
                         if viewModel.state.errorMessage == nil {
@@ -161,24 +136,41 @@ struct NightGuardPage: View {
             }
         case .expired, .afterCutoff:
             VStack(spacing: 12) {
-                DaylightSecondaryButton(title: NSLocalizedString("night.button.home", comment: "")) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.home", comment: ""),
+                                  kind: .nightPrimary) {
                     dismiss()
                 }
 
-                DaylightGhostButton(title: NSLocalizedString("night.button.adjust", comment: "")) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.adjust", comment: ""),
+                                  kind: .nightPrimary) {
                     dismiss()
                     viewModel.navigateToSettingsPage()
                 }
             }
         case .completed:
             VStack(spacing: 12) {
-                DaylightSecondaryButton(title: NSLocalizedString("night.button.home", comment: "")) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.home", comment: ""),
+                                  kind: .nightPrimary) {
                     dismiss()
                 }
             }
-        case .notEligible, .beforeEarly:
+        case .notEligible:
             VStack(spacing: 12) {
-                DaylightSecondaryButton(title: NSLocalizedString("night.button.home", comment: "")) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.commit", comment: ""),
+                                  kind: .nightPrimary) {
+                    dismiss()
+                    viewModel.navigateToDayPage()
+                }
+
+                DaylightCTAButton(title: NSLocalizedString("night.button.home", comment: ""),
+                                  kind: .nightPrimary) {
+                    dismiss()
+                }
+            }
+        case .beforeEarly:
+            VStack(spacing: 12) {
+                DaylightCTAButton(title: NSLocalizedString("night.button.home", comment: ""),
+                                  kind: .nightPrimary) {
                     dismiss()
                 }
             }

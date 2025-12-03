@@ -23,12 +23,13 @@ struct NotificationScheduler {
     private let minutesPerDay = 24 * 60
     private let lastScheduledDayKeyKey = "daylight_last_scheduled_day_key"
     private let scheduledRequestIdsKey = "daylight_scheduled_request_ids"
+    private let lastNotificationAuthStatusKey = "daylight_last_notification_auth_status"
     private let center = UNUserNotificationCenter.current()
     private let defaults: UserDefaults
     private let calendar: Calendar
     private let timeZone: TimeZone
 
-    init(calendar: Calendar = .current, timeZone: TimeZone = .current, defaults: UserDefaults = .standard) {
+    init(calendar: Calendar = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent, defaults: UserDefaults = .standard) {
         var cal = calendar
         cal.timeZone = timeZone
         self.calendar = cal
@@ -36,12 +37,19 @@ struct NotificationScheduler {
         self.defaults = defaults
     }
 
+    static func withCurrentEnvironment(defaults: UserDefaults = .standard) -> NotificationScheduler {
+        NotificationScheduler(calendar: .autoupdatingCurrent, timeZone: .autoupdatingCurrent, defaults: defaults)
+    }
+
     func requestAuthorization() async -> Bool {
+        let granted: Bool
         do {
-            return try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            return false
+            granted = false
         }
+        let status = await authorizationStatusWithCache()
+        return granted && isAuthorized(status)
     }
 
     func authorizationStatus() async -> UNAuthorizationStatus {
@@ -52,8 +60,18 @@ struct NotificationScheduler {
         }
     }
 
-    func notificationsEnabled() async -> Bool {
+    func authorizationStatusWithCache() async -> UNAuthorizationStatus {
         let status = await authorizationStatus()
+        cacheAuthorizationStatus(status)
+        return status
+    }
+
+    func lastCachedAuthorizationStatus() -> UNAuthorizationStatus? {
+        guard let raw = defaults.object(forKey: lastNotificationAuthStatusKey) as? Int else { return nil }
+        return UNAuthorizationStatus(rawValue: raw)
+    }
+
+    func isAuthorized(_ status: UNAuthorizationStatus) -> Bool {
         switch status {
         case .authorized, .provisional, .ephemeral:
             return true
@@ -62,9 +80,14 @@ struct NotificationScheduler {
         }
     }
 
+    func notificationsEnabled() async -> Bool {
+        let status = await authorizationStatusWithCache()
+        return isAuthorized(status)
+    }
+
     /// 仅在未决状态下请求授权，避免重复弹窗
     func ensureAuthorization() async -> Bool {
-        let status = await authorizationStatus()
+        let status = await authorizationStatusWithCache()
         switch status {
         case .notDetermined:
             return await requestAuthorization()
@@ -80,21 +103,24 @@ struct NotificationScheduler {
                     dayKey: String,
                     nextDayKey: String?,
                     context: NotificationContext,
-                    nextDayContext: NotificationContext = .empty) async {
-        guard await notificationsEnabled() else { return }
-        clearLegacyRequests()
-        clearStoredRequests()
+                    nextDayContext: NotificationContext = .empty,
+                    now: Date = Date()) async {
+        let status = await authorizationStatusWithCache()
+        guard isAuthorized(status) else { return }
+        resetScheduledRequests()
 
         var scheduledIds: [String] = []
         scheduledIds += await scheduleDaily(dayKey: dayKey,
                                             settings: settings,
                                             context: context,
-                                            nightReminderNeeded: nightReminderNeeded)
+                                            nightReminderNeeded: nightReminderNeeded,
+                                            now: now)
         if let nextKey = nextDayKey {
             scheduledIds += await scheduleDaily(dayKey: nextKey,
                                                 settings: settings,
                                                 context: nextDayContext,
-                                                nightReminderNeeded: settings.nightReminderEnabled)
+                                                nightReminderNeeded: settings.nightReminderEnabled,
+                                                now: now)
         }
         saveScheduled(ids: scheduledIds, dayKey: dayKey)
     }
@@ -135,12 +161,12 @@ struct NotificationScheduler {
     private func scheduleDaily(dayKey: String,
                                settings: Settings,
                                context: NotificationContext,
-                               nightReminderNeeded: Bool) async -> [String] {
+                               nightReminderNeeded: Bool,
+                               now: Date = Date()) async -> [String] {
         guard let dayDate = dayFormatter.date(from: dayKey) else { return [] }
 
         await clearRequests(for: dayKey)
         var scheduled: [String] = []
-        let now = Date()
 
         if let dayRequest = buildDayRequest(for: dayDate, time: settings.dayReminderTime, context: context, dayKey: dayKey),
            dayRequest.fireDate > now {
@@ -189,6 +215,24 @@ struct NotificationScheduler {
                                             content: makeDayContent(context: context, dayKey: dayKey),
                                             trigger: trigger)
         return (id, request, fireDate)
+    }
+
+    func handleTimeChange(event: TimeChangeEvent,
+                          settings: Settings,
+                          nightReminderNeeded: Bool,
+                          dayKey: String,
+                          nextDayKey: String?,
+                          context: NotificationContext,
+                          nextDayContext: NotificationContext = .empty,
+                          now: Date = Date()) async {
+        _ = event
+        await reschedule(settings: settings,
+                         nightReminderNeeded: nightReminderNeeded,
+                         dayKey: dayKey,
+                         nextDayKey: nextDayKey,
+                         context: context,
+                         nextDayContext: nextDayContext,
+                         now: now)
     }
 
     private func buildNightRequest(minutes: Int,
@@ -292,7 +336,7 @@ struct NotificationScheduler {
 
     private func localized(_ key: String, _ args: CVarArg...) -> String {
         let format = NSLocalizedString(key, comment: "")
-        return String(format: format, locale: Locale.current, arguments: args)
+        return String(format: format, locale: Locale.autoupdatingCurrent, arguments: args)
     }
 
     private func trimmed(_ text: String?) -> String? {
@@ -342,7 +386,7 @@ struct NotificationScheduler {
            (0..<60).contains(minute) {
             return hour * 60 + minute
         }
-        var formatter = DateFormatter()
+        let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = timeZone
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -412,6 +456,11 @@ struct NotificationScheduler {
         center.removePendingNotificationRequests(withIdentifiers: stored)
     }
 
+    private func resetScheduledRequests() {
+        clearLegacyRequests()
+        clearStoredRequests()
+    }
+
     private func pendingRequestIdentifiers(prefixes: [String]) async -> [String] {
         let requests = await withCheckedContinuation { continuation in
             center.getPendingNotificationRequests { continuation.resume(returning: $0) }
@@ -424,6 +473,10 @@ struct NotificationScheduler {
     private func saveScheduled(ids: [String], dayKey: String) {
         defaults.set(ids, forKey: scheduledRequestIdsKey)
         defaults.set(dayKey, forKey: lastScheduledDayKeyKey)
+    }
+
+    private func cacheAuthorizationStatus(_ status: UNAuthorizationStatus) {
+        defaults.set(status.rawValue, forKey: lastNotificationAuthStatusKey)
     }
 
     private var dayFormatter: DateFormatter {

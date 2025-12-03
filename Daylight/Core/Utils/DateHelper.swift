@@ -45,9 +45,15 @@ struct DaylightDateHelper {
     let timeZone: TimeZone
     private let minutesPerDay = 24 * 60
 
-    init(calendar: Calendar = .current, timeZone: TimeZone = .current) {
-        self.calendar = calendar
+    init(calendar: Calendar = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) {
+        var cal = calendar
+        cal.timeZone = timeZone
+        self.calendar = cal
         self.timeZone = timeZone
+    }
+
+    static func withCurrentEnvironment() -> DaylightDateHelper {
+        DaylightDateHelper(calendar: .autoupdatingCurrent, timeZone: .autoupdatingCurrent)
     }
 
     func isoString(_ date: Date) -> String {
@@ -83,6 +89,23 @@ struct DaylightDateHelper {
             baseDate = calendar.startOfDay(for: date)
         }
         return dayFormatter.string(from: baseDate)
+    }
+
+    func recentDayKeys(days: Int, reference: Date = Date(), nightWindow: NightWindow) -> [String] {
+        guard days > 0 else { return [] }
+        var calendar = calendar
+        calendar.timeZone = timeZone
+
+        let baseString = localDayString(for: reference, nightWindow: nightWindow)
+        let baseDate = dayFormatter.date(from: baseString) ?? reference
+
+        var dates: [String] = []
+        for offset in 0..<days {
+            if let date = calendar.date(byAdding: .day, value: -offset, to: baseDate) {
+                dates.append(dayFormatter.string(from: date))
+            }
+        }
+        return dates
     }
 
     func nextLocalDayBoundary(after date: Date = Date(), nightWindow: NightWindow) -> Date {
@@ -168,7 +191,7 @@ struct DaylightDateHelper {
               let minute = Int(parts[1]),
               (0..<24).contains(hour),
               (0..<60).contains(minute) else {
-            var formatter = DateFormatter()
+            let formatter = DateFormatter()
             formatter.calendar = calendar
             formatter.timeZone = timeZone
             formatter.locale = Locale(identifier: "en_US_POSIX")

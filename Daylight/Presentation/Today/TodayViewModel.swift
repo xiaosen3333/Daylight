@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import UserNotifications
 
 @MainActor
 final class TodayViewModel: ObservableObject {
@@ -24,6 +25,12 @@ final class TodayViewModel: ObservableObject {
         case expired
         case completed
         case afterCutoff
+    }
+
+    enum RecoveryAction: Equatable {
+        case day
+        case night(dayKey: String)
+        case none
     }
 
     struct NightGuardContext {
@@ -53,7 +60,6 @@ final class TodayViewModel: ObservableObject {
         var settings: Settings?
         var streak: StreakResult?
         var errorMessage: String?
-        var toastMessage: String?
     }
 
     @Published var state = UIState()
@@ -62,26 +68,28 @@ final class TodayViewModel: ObservableObject {
     @Published var locale: Locale = .autoupdatingCurrent
     @Published var monthRecords: [DayRecord] = []
     @Published var nickname: String = ""
-    @Published var showNotificationPrompt: Bool = false
     @Published var settingsSyncState: SettingsSyncState = .idle
     @Published var nightDayKey: String?
+    @Published var recoveryAction: RecoveryAction?
 
     private let userRepository: UserRepository
     private let loadTodayState: LoadTodayStateUseCase
     private let setDayCommitment: SetDayCommitmentUseCase
     private let confirmSleep: ConfirmSleepUseCase
+    private let undoSleep: UndoSleepUseCase
     private let rejectNight: RejectNightUseCase
     private let loadLightChain: LoadLightChainUseCase
     private let getStreak: GetStreakUseCase
     private let updateSettingsUseCase: UpdateSettingsUseCase
     private let loadMonthUseCase: LoadMonthRecordsUseCase
-    let dateHelper: DaylightDateHelper
-    private let notificationScheduler: NotificationScheduler
+    var dateHelper: DaylightDateHelper
+    private var notificationScheduler: NotificationScheduler
     private let syncReplayer: SyncReplayer
 
     private var user: User?
     private var lastDayKey: String?
     private var dayChangeTask: Task<Void, Never>?
+    private var hasPendingSignificantTimeChange = false
 
     var currentUserId: String? { user?.id }
 
@@ -89,6 +97,7 @@ final class TodayViewModel: ObservableObject {
          loadTodayState: LoadTodayStateUseCase,
         setDayCommitment: SetDayCommitmentUseCase,
         confirmSleep: ConfirmSleepUseCase,
+        undoSleep: UndoSleepUseCase,
         rejectNight: RejectNightUseCase,
         loadLightChain: LoadLightChainUseCase,
         getStreak: GetStreakUseCase,
@@ -101,6 +110,7 @@ final class TodayViewModel: ObservableObject {
         self.loadTodayState = loadTodayState
         self.setDayCommitment = setDayCommitment
         self.confirmSleep = confirmSleep
+        self.undoSleep = undoSleep
         self.rejectNight = rejectNight
         self.loadLightChain = loadLightChain
         self.getStreak = getStreak
@@ -121,10 +131,12 @@ final class TodayViewModel: ObservableObject {
         Task { await refreshAll() }
     }
 
-    func refreshAll(trigger: RefreshTrigger = .manual, includeMonth: Bool = false) async {
+    func refreshAll(trigger: RefreshTrigger = .manual, includeMonth: Bool = false, rescheduleNotifications: Bool = true) async {
         if state.isLoading { return }
         state.isLoading = true
+        let cachedStatus = notificationScheduler.lastCachedAuthorizationStatus()
         _ = trigger
+        locale = LanguageManager.shared.currentLocale
         state.errorMessage = nil
         defer { state.isLoading = false }
         do {
@@ -137,7 +149,9 @@ final class TodayViewModel: ObservableObject {
             commitmentText = today.record.commitmentText ?? ""
             try await refreshLightChain()
             try await refreshStreak()
-            await scheduleNotifications()
+            if rescheduleNotifications {
+                await scheduleNotifications()
+            }
             if includeMonth {
                 await loadMonth(todayDate())
             }
@@ -149,6 +163,7 @@ final class TodayViewModel: ObservableObject {
             state.errorMessage = error.localizedDescription
             await scheduleDayChangeCheck()
         }
+        await handleNotificationRecovery(now: Date(), previousStatus: cachedStatus)
     }
 
     func applySuggestedReason(_ text: String) {
@@ -156,13 +171,13 @@ final class TodayViewModel: ObservableObject {
     }
 
     func submitCommitment() async {
+        if shouldBlockForTimeChange() { return }
         guard let user = user, let settings = state.settings else { return }
         state.isSavingCommitment = true
         state.errorMessage = nil
         do {
             let record = try await setDayCommitment.execute(userId: user.id, settings: settings, text: commitmentText)
             state.record = record
-            state.toastMessage = "白昼之灯已点亮"
             try await refreshLightChain()
             try await refreshStreak()
             await scheduleNotifications()
@@ -174,6 +189,7 @@ final class TodayViewModel: ObservableObject {
     }
 
     func confirmSleepNow(allowEarly: Bool = false, dayKey: String? = nil) async {
+        if shouldBlockForTimeChange() { return }
         guard let user = user, let settings = state.settings else { return }
         let targetDayKey = dayKey ?? nightDayKey ?? state.record?.date ?? todayKey()
         let now = Date()
@@ -188,7 +204,6 @@ final class TodayViewModel: ObservableObject {
             if state.record == nil || state.record?.date == record.date {
                 state.record = record
             }
-            state.toastMessage = "夜间守护已完成"
             try await refreshLightChain()
             try await refreshStreak()
             await scheduleNotifications()
@@ -198,7 +213,46 @@ final class TodayViewModel: ObservableObject {
         state.isSavingNight = false
     }
 
+    func canShowWakeButton(now: Date = Date()) -> Bool {
+        guard let record = state.record,
+              record.dayLightStatus == .on,
+              record.nightLightStatus == .on,
+              let settings = state.settings else { return false }
+        let today = todayKey(for: now)
+        guard record.date == today else { return false }
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: record.date)
+        return now < timeline.cutoff
+    }
+
+    func undoSleepNow(dayKey: String? = nil) async {
+        if shouldBlockForTimeChange() { return }
+        guard let user = user, let settings = state.settings else { return }
+        let targetDayKey = dayKey ?? nightDayKey ?? state.record?.date ?? todayKey()
+        let now = Date()
+        state.isSavingNight = true
+        state.errorMessage = nil
+        do {
+            let result = try await undoSleep.execute(userId: user.id,
+                                                     settings: settings,
+                                                     dayKey: targetDayKey,
+                                                     now: now)
+            let record = result.record
+            if state.record == nil || state.record?.date == record.date {
+                state.record = record
+            }
+            try await refreshLightChain()
+            try await refreshStreak()
+            if result.timeline.phase == .early || result.timeline.phase == .inWindow {
+                await scheduleNotifications()
+            }
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+        state.isSavingNight = false
+    }
+
     func rejectNightOnce(dayKey: String? = nil) async {
+        if shouldBlockForTimeChange() { return }
         guard let user = user, let settings = state.settings else { return }
         let targetDayKey = dayKey ?? nightDayKey ?? state.record?.date ?? todayKey()
         let now = Date()
@@ -213,7 +267,6 @@ final class TodayViewModel: ObservableObject {
             if state.record == nil || state.record?.date == record.date {
                 state.record = record
             }
-            state.toastMessage = "继续玩手机已记录"
             try await refreshLightChain()
             try await refreshStreak()
             await scheduleNotifications()
@@ -233,7 +286,6 @@ final class TodayViewModel: ObservableObject {
 
     func nightCTAContext(now: Date = Date()) -> NightGuardContext? {
         guard let context = nightGuardContext(now: now) else { return nil }
-        guard state.settings?.nightReminderEnabled == true else { return nil }
         guard context.showHomeCTA else { return nil }
         guard context.phase != .afterCutoff else { return nil }
         return context
@@ -345,8 +397,8 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func refreshStreak() async throws {
-        guard let user = user else { return }
-        state.streak = try await getStreak.execute(userId: user.id)
+        guard let user = user, let settings = state.settings else { return }
+        state.streak = try await getStreak.execute(userId: user.id, settings: settings)
     }
 
     private func scheduleNotifications() async {
@@ -370,6 +422,25 @@ final class TodayViewModel: ObservableObject {
         lastDayKey = effectiveDayKey
     }
 
+    private func nightWindowChanged(from old: Settings, to new: Settings) -> Bool {
+        old.nightReminderStart != new.nightReminderStart ||
+        old.nightReminderEnd != new.nightReminderEnd ||
+        old.nightReminderInterval != new.nightReminderInterval
+    }
+
+    private func forceRescheduleTonight(settings: Settings, timeline: NightTimeline, now: Date) async {
+        let dayKey = timeline.dayKey
+        let nightNeeded = shouldScheduleNight(for: state.record)
+        let context = makeNotificationContext(settings: settings)
+        await notificationScheduler.reschedule(settings: settings,
+                                               nightReminderNeeded: nightNeeded,
+                                               dayKey: dayKey,
+                                               nextDayKey: nil,
+                                               context: context,
+                                               now: now)
+        lastDayKey = dayKey
+    }
+
     // MARK: - Dev helpers
     func triggerDayReminderNow() async {
         let context = state.settings.map { makeNotificationContext(settings: $0) } ?? .empty
@@ -381,6 +452,14 @@ final class TodayViewModel: ObservableObject {
         await notificationScheduler.triggerNightReminderNow(context: context)
     }
 
+    func handleNightToggle(enabled: Bool, now: Date = Date()) async {
+        guard let settings = state.settings, !enabled else { return }
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now)
+        if timeline.phase == .inWindow {
+            notificationScheduler.clearNightReminders()
+        }
+    }
+
     func saveSettings(dayReminder: Date,
                       nightStart: Date,
                       nightEnd: Date,
@@ -388,6 +467,8 @@ final class TodayViewModel: ObservableObject {
                       nightEnabled: Bool,
                       showCommitmentInNotification: Bool) async {
         guard var settings = state.settings else { return }
+        let previousSettings = settings
+        let now = Date()
         state.errorMessage = nil
         settingsSyncState = .syncing
         settings.dayReminderTime = dateHelper.storageTimeString(from: dayReminder)
@@ -397,11 +478,17 @@ final class TodayViewModel: ObservableObject {
         settings.nightReminderEnabled = nightEnabled
         settings.showCommitmentInNotification = showCommitmentInNotification
         settings.version += 1
+        let nightWindowChanged = nightWindowChanged(from: previousSettings, to: settings)
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now)
         do {
             try await updateSettingsUseCase.execute(settings)
             state.settings = settings
             settingsSyncState = .synced
-            await scheduleNotifications()
+            if nightWindowChanged && (timeline.phase == .early || timeline.phase == .inWindow) {
+                await forceRescheduleTonight(settings: settings, timeline: timeline, now: now)
+            } else {
+                await scheduleNotifications()
+            }
             await refreshSettingsSyncState()
         } catch let domainError as DomainError {
             state.settings = settings
@@ -431,6 +518,14 @@ final class TodayViewModel: ObservableObject {
         NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: info)
     }
 
+    func navigateToDayPage(dayKey: String? = nil) {
+        var info: [String: String] = ["deeplink": "day"]
+        if let dayKey {
+            info["dayKey"] = dayKey
+        }
+        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: info)
+    }
+
     func navigateToSettingsPage() {
         NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: ["deeplink": "settings"])
     }
@@ -438,6 +533,11 @@ final class TodayViewModel: ObservableObject {
     func setLanguage(_ code: String?) {
         LanguageManager.shared.setLanguage(code)
         locale = LanguageManager.shared.currentLocale
+    }
+
+    func updateTimeDependencies(dateHelper: DaylightDateHelper, notificationScheduler: NotificationScheduler) {
+        self.dateHelper = dateHelper
+        self.notificationScheduler = notificationScheduler
     }
 
     func updateNickname(_ newName: String) async {
@@ -478,6 +578,16 @@ final class TodayViewModel: ObservableObject {
         return record.dayLightStatus == .on && record.nightLightStatus == .off
     }
 
+    private func shouldBlockForTimeChange() -> Bool {
+        guard hasPendingSignificantTimeChange else { return false }
+        state.errorMessage = timeChangeErrorMessage
+        return true
+    }
+
+    private var timeChangeErrorMessage: String {
+        NSLocalizedString("error.timeChange", comment: "")
+    }
+
     private func ensureNotificationsSynced(for dayKey: String) async {
         guard state.settings != nil else { return }
         if notificationScheduler.lastScheduledDayKey() != dayKey {
@@ -511,17 +621,71 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func checkNotificationPermissionAfterCommit() async {
-        // 若未授权则请求一次；仍未开启则提示去设置
+        // 未授权时静默请求一次权限，不在界面弹窗提示
         let enabled = await notificationScheduler.notificationsEnabled()
         if enabled { return }
         let granted = await notificationScheduler.requestAuthorization()
-        if !granted {
-            showNotificationPrompt = true
+        _ = granted
+    }
+
+    func handleNotificationRecovery(now: Date = Date(), previousStatus: UNAuthorizationStatus? = nil) async {
+        guard let settings = state.settings else { return }
+        let cachedStatus = previousStatus ?? notificationScheduler.lastCachedAuthorizationStatus()
+        let currentStatus = await notificationScheduler.authorizationStatusWithCache()
+        guard let cachedStatus,
+              !notificationScheduler.isAuthorized(cachedStatus),
+              notificationScheduler.isAuthorized(currentStatus) else {
+            return
         }
+
+        await scheduleNotifications()
+
+        guard let record = state.record else { return }
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: record.date)
+        let dayReminderTime = dateHelper.date(from: settings.dayReminderTime, reference: now)
+        if record.dayLightStatus == .off && now >= dayReminderTime && now < timeline.nightStart {
+            recoveryAction = .day
+            return
+        }
+        if let context = nightCTAContext(now: now) {
+            recoveryAction = .night(dayKey: context.dayKey)
+        }
+    }
+
+    func handleTimeChange(event: TimeChangeEvent) async {
+        if event.isSignificantJump {
+            hasPendingSignificantTimeChange = true
+        }
+        locale = LanguageManager.shared.currentLocale
+        defer { hasPendingSignificantTimeChange = false }
+        await refreshAll(trigger: .manual, includeMonth: true, rescheduleNotifications: false)
+        guard let settings = state.settings else {
+            await scheduleDayChangeCheck()
+            return
+        }
+        let effectiveDayKey = todayKey()
+        let nextKey = nextDayKey(from: effectiveDayKey, settings: settings)
+        let nightNeeded = shouldScheduleNight(for: state.record)
+        let context = makeNotificationContext(settings: settings)
+        let nextContext = NotificationContext(
+            nickname: user?.nickname,
+            hasCommitmentToday: false,
+            commitmentPreview: nil,
+            showCommitmentInNotification: settings.showCommitmentInNotification
+        )
+        await notificationScheduler.handleTimeChange(event: event,
+                                                     settings: settings,
+                                                     nightReminderNeeded: nightNeeded,
+                                                     dayKey: effectiveDayKey,
+                                                     nextDayKey: nextKey,
+                                                     context: context,
+                                                     nextDayContext: nextContext)
+        await scheduleDayChangeCheck()
     }
 
     @discardableResult
     func refreshIfNeeded(trigger: RefreshTrigger, includeMonth: Bool = false) async -> Bool {
+        let cachedStatus = notificationScheduler.lastCachedAuthorizationStatus()
         if state.isLoading {
             await scheduleDayChangeCheck()
             return false
@@ -535,6 +699,7 @@ final class TodayViewModel: ObservableObject {
         guard key != lastDayKey else {
             await ensureNotificationsSynced(for: key)
             await scheduleDayChangeCheck()
+            await handleNotificationRecovery(now: Date(), previousStatus: cachedStatus)
             return false
         }
         await refreshAll(trigger: trigger, includeMonth: includeMonth)

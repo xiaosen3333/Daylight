@@ -1,5 +1,368 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.11）
+- 目的：统一 Day/Night CTA 样式入口，避免组件串场，版本号 1.4.11。
+- 范围：DesignSystem 新增 DaylightCTAButton(kind) 并为 Primary/Secondary/Ghost 提供兼容别名；Today 首页夜间 CTA（early/inWindow/expired）与 wake 按钮统一 dayPrimary；NightGuard 所有阶段 CTA（含 adjust）统一 nightPrimary 并补齐 loading；Design tokens 不变。
+- 影响面：仅 UI 组件替换与按背景选择 kind，业务逻辑、UseCase、路由不动；旧调用保持原签名与默认参数。
+- 验收要点：Today 任意夜间 CTA、wake、日间承诺按钮均为 dayPrimary；NightGuard 所有状态按钮为 nightPrimary 且 early/inWindow 显示 loading；Settings 等幽灵按钮保持 ghost；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（Today 首页 - 全 dayPrimary）
+```
+背景: DaylightColors.bgPrimary
+[GlowingSun 140]
+[Hero 标题]
+[副标题]
+
+[CTA: DaylightCTAButton(kind:.dayPrimary) homeButtonTitle]
+[夜间 CTA: DaylightCTAButton(kind:.dayPrimary) 睡觉/提前睡/过期文案]
+[可选: DaylightCTAButton(kind:.dayPrimary) "home.button.wake"]
+[LightDot x7 灯链按钮]
+[Stats 网格展开区]
+```
+
+### ASCII 原型（日间承诺页 - 全 dayPrimary）
+```
+背景: DaylightColors.bgPrimary
+[GlowingSun 120]
+[标题 commit.title.full]
+
+[胶囊 TextField + 3 个 plain 胶囊建议按钮]
+[CTA: DaylightCTAButton(kind:.dayPrimary) "common.confirm"]
+```
+
+### ASCII 原型（NightGuard - 全 nightPrimary）
+```
+背景: DaylightColors.bgNight
+[GlowingMoon 120]
+[标题: night.*.title]
+[正文: early/inWindow 显示承诺或占位; notEligible 显示 night.subtitle.notReady]
+
+CTA 组合 (kind:.nightPrimary):
+- early:        [night.button.early  isLoading/isEnabled 复用现逻辑]
+- inWindow:     [night.button] + [night.button.continue]
+- expired/afterCutoff: [night.button.home] + [night.button.adjust]
+- completed:    [night.button.home]
+- notEligible:  [night.button.commit] + [night.button.home]
+- beforeEarly:  [night.button.home]
+```
+
+### 技术架构与要点更新
+- DesignSystem/Components 新增 `DaylightCTAButton(kind:isEnabled:isLoading:icon:action:)`，按 kind 分发 dayPrimary/nightPrimary/ghost 样式，沿用既有颜色/圆角/字号/padding。
+- DaylightPrimaryButton / DaylightSecondaryButton / DaylightGhostButton 保留旧签名作为别名并标注推荐使用 CTA；Secondary/Ghost 新增 `isLoading`（默认 false）以便夜间 loading 时阻断点击。
+- TodayView 夜间 CTA（含 expired）与 wake 按钮统一 dayPrimary，现有文案与导航逻辑保持不变。
+- NightGuardPage 所有按钮改为 nightPrimary（含原 ghost adjust），保持 isSavingNight 绑定与 dismiss/导航流程不动。
+- MARKETING_VERSION 同步更新为 1.4.11；Design tokens 未调整，其他模块视觉与逻辑等价。
+
+## 新版本更新（1.4.10）
+- 目的：夜间守护不可用态直达承诺页，减少回首页再跳转的多余操作；版本号 1.4.10。
+- 范围：NightGuard `.notEligible` 新增主 CTA “去写承诺” 使用 DaylightPrimaryButton，点击后先关闭夜页再经 `.daylightNavigate` deeplink=day 跳转 DayCommitmentPage；`.beforeEarly` 仍仅保留“回首页”；TodayViewModel 增加 `navigateToDayPage` 复用既有通知导航；本地化新增 `night.button.commit` / `night.subtitle.notReady`。
+- 影响面：仅 NightGuard 不可用态的按钮与文案调整，其余阶段（early/inWindow/expired/afterCutoff/beforeEarly）按钮与逻辑保持不变；导航与 DesignSystem 组件沿用现有实现，无新增样式。
+- 验收要点：夜间通知进入 notEligible 场景→点击“去写承诺”关闭夜页并打开 DayCommitmentPage；其他阶段按钮组合不变；中文/英文文案正确落地；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（NightGuard - notEligible）
+```
++----------------------------------------------------+
+| 夜空背景                                           |
+|             ☆   🌙（现有插画保持不变）             |
+|  标题：先点亮白昼之灯                               |
+|                                                    |
+| [ 去写承诺 ]  (Primary 金色按钮)                    |
+| [ 回首页  ]  (Secondary 按钮，保留现有)             |
++----------------------------------------------------+
+```
+
+### ASCII 原型（DayCommitment 跳转后）
+```
++-----------------------------------------------+
+| 太阳插画                                      |
+| 如果今晚早点休息，你会更舒服吗？               |
+| [文本输入胶囊]                                 |
+| [建议1] [建议2] [建议3]                        |
+| [好的]                                        |
++-----------------------------------------------+
+```
+
+### 技术架构与要点更新
+- NightGuardPage 将 `.notEligible` 与 `.beforeEarly` 拆分，前者新增 DaylightPrimaryButton “去写承诺”（dismiss 后调用 `navigateToDayPage`），保留 DaylightSecondaryButton “回首页”；正文在不可用态展示 `night.subtitle.notReady` 引导补写承诺，按钮间距沿用 12pt。
+- TodayViewModel 新增 `navigateToDayPage(dayKey:)`，与夜页/设置页导航同样通过 `NotificationCenter.default.post(name: .daylightNavigate, userInfo:)` 发送 `deeplink: "day"`，避免重复造轮子。
+- 本地化补充 `night.button.commit` / `night.subtitle.notReady`，MARKETING_VERSION 更新为 1.4.10；使用既有 DaylightPrimaryButton/DaylightSecondaryButton 与 `.daylight` 文本样式，未新增组件或样式。
+
+## 新版本更新（1.4.9）
+- 目的：夜间入口与 NightGuard 去掉承诺预览与提示文案，保留按钮节奏，避免多余提示；版本号 1.4.9。
+- 范围：Today 夜间 CTA 卡片仅保留主按钮（早睡/睡觉/过期态 Primary/Secondary）；NightGuard 移除跨日提示与 secondary hint，正文仅早睡/夜窗显示承诺或占位；本地化删除对应 hint key；工程版本号同步。
+- 影响面：首页夜间卡片仅剩主 CTA，不再露出承诺预览或 hint；NightGuard 完成/过期/不可用状态正文为空无额外空行，按钮组合与现有组件保持一致；其他模块不改。
+- 验收要点：早睡/夜窗态主按钮可正常进入夜间页；过期态按钮为 Secondary，卡片无其他文案；NightGuard 仅 `.early/.inWindow` 出现正文，其他阶段正文隐藏无空白；`home.cta.early/expired.hint` 与 `night.hint.*` 均无引用；xcodebuild 通过。
+
+### ASCII 原型（Today 夜间 CTA 卡片）
+```
+[Hero Title]
+[Subtitle]
+
+[Primary/Secondary CTA 按钮]   ← 根据阶段早睡/睡觉/过期
+[Wake 按钮] (可选，已有逻辑)
+```
+
+### ASCII 原型（NightGuard）
+```
+NightGuard（early / inWindow）
+[Star & Moon 图]
+
+[标题: night.title]
+[承诺正文或占位文案]
+
+[主按钮: 提前睡 / 去睡觉]
+[次按钮: 继续忙一下] (仅 inWindow)
+
+NightGuard（completed / expired / afterCutoff / notEligible / beforeEarly）
+[Star & Moon 图]
+
+[标题: 对应 state title]
+[无额外提示文案]
+
+[次按钮/幽灵按钮组合: 回首页 / 调整设置（过期态）]
+```
+
+### 技术架构与要点更新
+- TodayView.nightCTAConfig 去掉 hint 字段，夜间 CTA 仅渲染主按钮并按 phase 切换 Primary/Secondary，移除承诺预览函数。
+- NightGuardPage 移除 dayKey 顶部提示与 secondary hint，`bodyText` 仅在 `.early/.inWindow` 返回承诺/占位，其余为 nil，通过 `if let` 控制正文显隐，spacing 适度收紧。
+- 本地化清理 `home.cta.early/expired.hint` 与 `night.hint.*` 文案，MARKETING_VERSION 更新为 1.4.9；沿用现有 DesignSystem 按钮与 `.daylight` 文本样式，无新增组件。
+
+## 新版本更新（1.4.8）
+- 目的：当前连续天数按“从今日（夜窗切日）向前逐日，遇到缺口/未完成即停”，不再跳过缺口；版本号 1.4.8。
+- 范围：GetStreakUseCase 当前 streak 计算、DaylightDateHelper 日期序列工具、TodayViewModel 调用签名、LightChainPrimaryCard 数据源；Longest 逻辑与 DesignSystem/UI 组件保持不变。
+- 影响面：current streak 必须从今天起连续且日/夜两灯全亮才能累计；todayKey 取本地夜窗；lightchain 主卡直接展示新 current 值；LoadLightChain 复用日期序列生成避免重复逻辑；历史最佳仍基于既有记录遍历。
+- 验收要点：今天缺记录或任一日缺灯 -> current=0；无缺口连续 5 天全亮 -> current=5；[T-2 完成, T-1 缺失, T0 完成] -> current=0；夜窗跨日 todayKey 仍正确；xcodebuild 通过。
+
+### ASCII 原型（主卡片不变，仅数值更新）
+```
++--------------------------------------------------+
+| Lightchain (glowGold)                            |
+| 今天起连续天数： [  2 天 ]   历史最佳： [ 14 天 ] |
+| (其余灯链可视化保持不变)                           |
++--------------------------------------------------+
+```
+
+### ASCII 原型（当前连击计算流程）
+```
+todayKey = dateHelper.localDayString(now, NightWindow(settings))
+dayKeys = [T0, T-1, T-2, ...]  // 连续按天生成
+
+for key in dayKeys:
+  record = recordMap[key]
+  if record is nil -> stop (current = streak)
+  if record.dayLightStatus != .on or record.nightLightStatus != .on -> stop
+  streak += 1
+return streak
+```
+
+### 技术架构与要点更新
+- DaylightDateHelper：新增 `recentDayKeys(days:reference:nightWindow:)`，按夜窗切日生成最近天 key，复用原有 localDayString/dayFormatter。
+- GetStreakUseCase：`execute(userId:settings:)` 以夜窗生成 dayKeys，从今天向前查 recordMap，遇缺口或任一灯未亮立即终止；longest 保持原样，仍用 `max(current, computeLongest(records:))`。
+- LoadLightChainUseCase：改用 `recentDayKeys` 生成日期范围，避免重复日期计算，填充占位/排序逻辑不变。
+- TodayViewModel：`refreshStreak` 传入已加载的 state.settings 调用新签名；UI 组件沿用 DesignSystem，无新增样式。
+
+## 新版本更新（1.4.7）
+- 目的：系统时间/时区/区域变更后自动刷新 dayKey、夜窗与提醒排程，12/24h 文案自适应，检测大幅跳变时阻断关键入口；版本号 1.4.7。
+- 范围：Core 时间工具、通知调度、AppContainer 中枢监听、TodayViewModel 刷新与入口保护；UI/DesignSystem 不新增组件。
+- 影响面：DateHelper/NotificationScheduler 改用 `Calendar/TimeZone.autoupdatingCurrent`；TimeChangeMonitor 监听 tz/locale/significantTimeChange + uptime delta>5min；AppContainer 转发事件重建时间依赖并刷新 VM；大幅跳变时提交承诺/入睡/撤销入口用现有错误提示中断；其他模块保持原样。
+- 验收要点：切换时区后 dayKey/nightTimeline/提醒按新时区重算且 UI 时间文案随 12/24h 更新；系统时间拨动>5min 时入口被拦截并提示，完成全量刷新与通知重排；pending 通知与 lastScheduledDayKey 按新日界线更新；xcodebuild 通过。
+
+### ASCII 原型（时间变更事件流）
+```
++-----------------------------+    +---------------------+    +-----------------------------+
+| 系统变更 (tz/locale/跳变)   | -> | TimeChangeMonitor   | -> | AppContainer.handleTimeChange |
+| + uptime 差值校验           |    | 监听+delta>5min     |    | 重建时间源/调度并转发给 VM    |
++-----------------------------+    +---------------------+    +-------------+---------------+
+                                                                          |
+                                                                          v
+                                                        +-----------------------------+
+                                                        | TodayViewModel.handleTime...|
+                                                        | refreshAll -> reschedule    |
+                                                        | -> scheduleDayChangeCheck   |
+                                                        +-----------------------------+
+                                                                          |
+                                                                          v
+                                              dayKey/nightTimeline/通知按新 tz/locale/制式重算
+```
+
+### 技术架构与要点更新
+- DateHelper：默认使用 autoupdating Calendar/TimeZone，提供 `withCurrentEnvironment()` 便捷创建，formatter/calendar 统一复用。
+- NotificationScheduler：同样改为 autoupdating 来源，新增 `handleTimeChange` 清理已存/待触发请求并重新排程，localized 使用 `Locale.autoupdatingCurrent`。
+- TimeChangeMonitor：订阅 `NSSystemTimeZoneDidChange` / `UIApplication.significantTimeChangeNotification` / `NSLocale.currentLocaleDidChangeNotification`，对比 `Date()` 与 `systemUptime` 检测 delta>5 分钟触发 `.significantJump`。
+- AppContainer：持有 monitor，事件回调中重建 dateHelper/notificationScheduler 并调用 `TodayViewModel.handleTimeChange(event:)`，保持网络监听/同步逻辑不变。
+- TodayViewModel：处理时间变更时调用 `refreshAll(trigger:.manual, includeMonth:true)` -> 调度重排 -> `scheduleDayChangeCheck()`，locale 同步 `LanguageManager`；对大幅跳变事件在提交承诺/入睡/撤销入口直接走现有错误提示短路，避免错误打灯；视图层无新增组件。
+- 非相关模块保持不变：Night/Settings/DesignSystem 未改，通知 ID 规则沿用。
+
+## 新版本更新（1.4.6）
+- 目的：夜窗内调整夜窗开始/结束/间隔时立即按新窗口重排当晚剩余夜间提醒，不新增提示 UI；版本号 1.4.6。
+- 范围：Settings 夜窗设置保存流程、Today VM 夜间排程、NotificationScheduler 入参；DesignSystem/UI 保持现状。
+- 影响面：夜窗内/早睡期变更夜窗会立刻按新窗口重排仅剩余提醒（过滤 fireDate<=now）；夜窗外或夜间提醒关闭时沿用原排程；无 toast/弹窗新增。
+- 验收要点：夜窗内调整开始/结束/间隔后 Pending 列表仅保留未来时间且 dayKey 以新夜窗切日；夜窗外调整仍按原逻辑排程；其他模块行为不变；xcodebuild 通过。
+
+### ASCII 原型（设置页仅逻辑增强，无新增 UI）
+```
+[设置页 SettingsPage]  // 仅逻辑增强，无视觉改动
++-------------------------------------------------+
+| 提醒设置                                         |
+|  白昼提醒时间     [ 11:00 ▾ ]                    |
+|  开启夜间提醒     [ ON  ]                       |
+|  最早入睡时间     [ 22:30 ▾ ]                   |
+|  最晚入睡时间     [ 00:30 ▾ ]                   |
+|  夜间提醒间隔     [ 30 min ▾ ]                  |
+|  显示我写的句子   [ ON ]                        |
+|  (无新提示/Toast)                               |
++-------------------------------------------------+
+```
+
+### 技术架构与要点更新
+- NotificationScheduler：`reschedule`/`scheduleDaily` 新增可选 `now` 入参，沿用 `fireDate > now` 过滤仅排未来提醒，复用 `nightReminderTimes`/`nightDateComponents`/`saveScheduled`，`lastScheduledDayKey` 写入当次 `dayKey`。
+- TodayViewModel.saveSettings：保存前记录旧夜窗三元组，保存后基于新设置/`now` 计算 `nightTimeline`；夜窗变更且 `phase` ∈ {early, inWindow} 时 `forceRescheduleTonight(now)` 仅重排当晚（`dayKey` 取 `timeline.dayKey`，`shouldScheduleNight` 判定夜间需求，`nextDayKey=nil`），否则走 `scheduleNotifications()`。
+- SettingsPage/DesignSystem：无新增组件或提示，继续用 `DebouncedSettingsSaver` 触发保存；夜窗外、夜间提醒关闭或无变更时不触发强制重排。
+- 版本：`MARKETING_VERSION` 更新至 1.4.6，存储/接口契约不变。
+
+## 新版本更新（1.4.5）
+- 目的：夜间提醒开关仅控制是否排程推送，不再隐藏 Today 夜间 CTA；夜窗内关闭开关立即清除当晚提醒并提示用户；版本号 1.4.5。
+- 范围：Today 首页夜灯 CTA 显示逻辑、Settings 夜间提醒开关交互与夜间通知清理、本地化文案、工程版本号；夜页/通知调度其他路径保持原样。
+- 影响面：`nightReminderEnabled=false` 时夜窗/早睡/过窗前 CTA 仍可进入夜间守护；夜窗内从 ON→OFF 会立刻移除当晚夜间通知并弹提示；非夜窗或过 cutoff 关闭仅停止后续排程；重新开启沿用既有重排逻辑，其他设置项与页面不受影响。
+- 验收要点：夜窗内夜灯 OFF 且日灯 ON 时，即使提醒关闭首页仍出现睡觉 CTA 并可进入夜间页；夜窗内关闭夜间提醒弹出“今晚不再提醒，可在设置重新开启”且系统 Pending 列表无夜间提醒 ID；非夜窗关闭无弹窗但后续不再排程；重新打开后夜间提醒恢复排程，xcodebuild 通过。
+
+### ASCII 原型（夜间提醒开关不再隐藏入口）
+```
+[首页 Today]
+日灯: ON   夜灯: OFF    夜间提醒: 已关闭
+------------------------------------------------
+| [ 我要睡觉 / 提前入睡 ]  (主按钮始终可见)       |
+|  若过窗但未截止：副文案“今晚守护已结束”       |
+------------------------------------------------
+[设置 - 提醒]
+日间提醒        [22:00]  (时间选择器)
+夜间提醒开关    [ OFF ]
+夜间开始        [22:30]  夜间结束 [00:30]
+提醒间隔        [30 分 ▼]
+------------------------------------------------
+| 弹窗/Toast: 今晚不再提醒，可在设置重新开启     |
+|             [知道了]                          |
+------------------------------------------------
+```
+
+### 技术架构与要点更新
+- Today：`nightCTAContext` 不再校验 `settings.nightReminderEnabled`，仅基于 `NightGuardContext.showHomeCTA/phase` 与 `nightPhase` 控制显隐，过 cutoff 才隐藏。
+- Settings：夜间提醒 Toggle 拦截 ON→OFF 时调用 `handleNightToggle`；若 `dateHelper.nightTimeline` 判定处于 `.inWindow` 则立即 `NotificationScheduler.clearNightReminders()` 并弹出 `settings.night.disable.confirm` 提示，同时继续交给 `DebouncedSettingsSaver` 保存并触发 `saveSettings`→`updateSettingsUseCase`→`scheduleNotifications()`。
+- 新增辅助方法：`TodayViewModel.handleNightToggle(enabled:now:)` 复用 `nightTimeline` 判窗，夜窗内清理夜间提醒，避免重复造轮子。
+- 本地化/版本：新增 `settings.night.disable.confirm` 中英双语；`MARKETING_VERSION` 升级至 1.4.5，保持其他模块不变。
+
+## 新版本更新（1.4.4）
+- 目的：移除 Today 主流程与 Day/Night 子页的自定义 toast 与 SwiftUI alert，全部交由状态更新或页面跳转静默处理，系统推送权限仍由 iOS 弹窗控制；版本号 1.4.4。
+- 范围：删除 `UIState.toastMessage` 与成功提示写入，去除 TodayView 的错误/通知弹窗与打开设置动作；保留通知授权请求但不再提示；PRD 记录。
+- 影响面：提交承诺/夜间守护/继续玩手机/突然醒了/通知恢复流程均不弹出任何 in-app 提示，布局与 CTA 显隐逻辑保持原样；系统通知弹窗不受影响。
+- 验收要点：三页交互后仅状态更新或返回，无 toast/alert；通知恢复仅自动跳转 Day/Night；xcodebuild 通过。
+
+### ASCII 原型（无弹窗）
+```
+[Today 主页]
+⚙︎  按钮区 / CTA / “突然醒了” 按钮（按原逻辑显隐）
+最近7天灯链 + 统计区（可展开）
+<< 无顶部/覆盖提示 >>
+
+[DayCommitmentPage]
+☀️  标题 + 输入框 + 建议按钮 + [确认点亮]
+提交成功直接返回，失败停留（不弹窗）
+
+[NightGuardPage]
+🌙  标题/正文/提示按阶段切换
+早睡: [我准备睡啦]
+窗口: [我要睡觉啦] [继续玩手机]
+过期/afterCutoff: [回首页][调整提醒]
+完成/不可用: [回首页]
+<< 无任何弹窗 >>
+```
+
+### 技术架构与要点更新
+- `TodayViewModel.UIState` 移除 `toastMessage`，提交承诺/夜间守护/继续玩手机不再写入提示；`checkNotificationPermissionAfterCommit` 仍请求授权但不设置提示标记。
+- `TodayView` 删除错误/通知两个 `.alert` 与 `openSettings()`，移除 `showNotificationPrompt` 绑定，导航/CTA/scenePhase 行为保持不变。
+- 通知权限仍通过 `notificationScheduler.requestAuthorization()` 触发系统弹窗，`recoveryAction` 继续静默跳转，无新增依赖或 UI 组件。
+
+## 新版本更新（1.4.3）
+- 目的：修复设置页语言分段控件在未保存语言时回落到系统首选语言导致无法停留在“跟随系统”，保持默认选项为跟随系统；版本号 1.4.3。
+- 范围：仅调整 `SettingsPage.currentLanguageSelection()` 读取逻辑，复用现有 `viewModel.setLanguage`/`LanguageManager` 对 `nil` 代表跟随系统的处理；PRD 记录；不改布局或其他模块。
+- 影响面：未存储语言时 Picker 默认并保持“跟随系统”；已存 `zh`/`en` 前缀仍映射到中文/English；提醒、昵称、开发者工具等设置不受影响。
+- 验收要点：选择中文/English 后退出重进保持对应语言；选择“跟随系统”后退出重进仍停留在该选项且随系统语言变更；无存储语言首次进入默认为“跟随系统”；xcodebuild 通过。
+
+### ASCII 原型（设置页语言分段）
+```
+┌──────────────────────────────────────────────┐
+│ 设置                                         │
+├──────────────────────────────────────────────┤
+│ 语言                                         │
+│  ┌───────────┬───────────┬───────────┐      │
+│  │ 跟随系统  │   中文    │  English  │      │
+│  └───────────┴───────────┴───────────┘      │
+│  当前选择：跟随系统（无存储时默认）          │
+├──────────────────────────────────────────────┤
+│ 个人资料/提醒/开发者工具（保持原样）         │
+└──────────────────────────────────────────────┘
+```
+
+### 技术架构与要点更新
+- `SettingsPage.currentLanguageSelection()` 无存储值时直接返回 `"system"`；仅对已存 UserDefaults `DaylightSelectedLanguage` 做前缀映射：`zh*`→`zh-Hans`、`en*`→`en`，其他回退 `"system"`。
+- Picker 绑定保持现有逻辑，选择“跟随系统”时传 `nil` 给 `viewModel.setLanguage`，由 `LanguageManager` 处理跟随系统；语言存储/切换的其余流程保持不变。
+- UI 布局与其他设置项沿用现状，无新增依赖或重复封装。
+
+## 新版本更新（1.4.2）
+- 目的：补齐“权限恢复”漏斗，记录上一次通知授权；当用户从“拒绝/未定”切换为“允许”时立即重排提醒，并在仍处白昼或夜窗时自动打开对应页面，避免漏掉当日操作；版本号 1.4.2。
+- 范围：`NotificationScheduler` 持久化授权状态与缓存查询；`TodayViewModel/TodayView` 前台检测授权恢复后触发重排与 Day/Night 页面补弹；PRD 记录；不改仓库/UseCase/设计系统。
+- 影响面：授权恢复时会静默重排当日/次日通知；若白昼提醒已过且未点亮日灯，前台自动跳转 DayCommitment；若夜窗内且夜灯未完成，前台自动跳转 NightGuard（沿用 dayKey）；其他场景行为不变，无额外入口。
+- 验收要点：1）拒绝通知→开启→回前台，白昼已过夜未到时自动进入 DayCommitmentPage 且排程更新；2）拒绝→开启→夜窗内回前台，直接进入 NightGuardPage，dayKey 正确；3）已授权用户前后台切换无额外弹窗/重复排程；xcodebuild 通过。
+
+### ASCII 原型（通知恢复补弹）
+```
+[Today 主屏] (原样)
+[可选 toast（1.4.4 已取消弹窗）] ✅ 已重新开启通知，已为你补齐提醒
+太阳 / CTA / 统计...
+
+    授权恢复 & 白昼缺口             授权恢复 & 夜窗缺口
+             |                                 |
+             v                                 v
++------------------------------+   +------------------------------+
+| DayCommitmentPage (现有)     |   | NightGuardPage (现有)        |
+| 标题: 补交今日承诺            |   | 标题: 夜间守护               |
+| 输入/建议按钮 (原样)          |   | 承诺/时间窗文案 (原样)        |
+| [确认点亮] 主按钮             |   | [现在就睡]/[继续玩手机] 等   |
++------------------------------+   +------------------------------+
+```
+
+### 技术架构与要点更新
+- 授权追踪：`NotificationScheduler` 持久化 `lastNotificationAuthStatus` 到 `UserDefaults`，新增 `authorizationStatusWithCache()` / `lastCachedAuthorizationStatus()` / `isAuthorized(_:)`；`notificationsEnabled()`/`reschedule(...)`/`requestAuthorization()` 都会更新缓存，未授权时提前返回但仍写入状态。
+- 补弹逻辑：`TodayViewModel` 新增 `recoveryAction`（`.day`/`.night(dayKey:)`），`handleNotificationRecovery(now:)` 比对上次缓存与当前授权，从非授权->授权时调用 `scheduleNotifications()` 后根据白昼/夜窗缺口决定跳转目标（夜窗复用 `nightCTAContext`，预置 dayKey）。
+- 触发时机：`onAppear` 与 `refreshIfNeeded` 完成后调用 `handleNotificationRecovery`；`TodayView` 的 `scenePhase == .active` 时先 `refreshIfNeeded` 再恢复检测，保持既有刷新节奏。
+- UI：`TodayView` 监听 `recoveryAction`，`.day` 打开 DayCommitment，`.night` 预置 dayKey 后打开 NightGuard，处理后清空；可选顶部 toast 提示“已重新开启通知，已为你补齐提醒”。
+
+## 新版本更新（1.4.1）
+- 目的：提供“突然醒了”单入口撤销夜灯，支持夜窗/早睡内重排剩余夜间提醒，过窗但未过 cutoff 仅熄灯，cutoff 后不露出，避免 NightGuard/灯链入口重复。
+- 范围：新增 UndoSleep 用例、Today 首页按钮/VM 判窗与调度、撤销成功/错误文案本地化、PRD 记录；不改 NightGuard/LightChain 交互与其他模块。
+- 影响面：Today 首页在夜灯为 ON 且 dayKey=今日且未过 cutoff 时露出“突然醒了”；撤销会熄灭夜灯并清空 sleepConfirmedAt（静默反馈，按钮消失/状态更新）；夜窗/早睡内同时重排夜间通知；过窗至 cutoff 前不重排；错误提示“夜灯未点亮，无需撤销”/“已超过可撤销时间”；注入新用例。
+- 验收要点：夜窗/早睡时按钮可见且撤销后夜灯 OFF + sleepConfirmedAt 为空 + 夜间 pending ID 仅保留剩余窗口；过窗未过 cutoff 仅熄灯无新夜间提醒；cutoff 后按钮不出现；夜灯本就 OFF 不露出且调用提示无需撤销；xcodebuild 通过。
+
+### ASCII 原型（Today 首页折叠区）
+```
+[Today hero]
+☀️ title/subtitle
+承诺预览：早点睡…
+夜灯已点亮
+[ 突然醒了 ]  ← 次按钮
+显示：nightLight=ON 且 dayKey=今日 且 now<cutoff
+点击：
+- 夜窗/早睡：熄灯+sleepConfirmedAt 清空+重排剩余夜间提醒（静默，按钮消失）
+- 夜窗后 cutoff 前：仅熄灯，不重排（静默，按钮消失）
+- cutoff 后：按钮不显示
+```
+
+### 技术架构与要点更新
+- 用例：`UndoSleepUseCase` 复用 `DaylightDateHelper.nightTimeline` 判窗与 cutoff，校验 dayLight/nighLight 为 on 且未过 cutoff，重置 nightLightStatus/sleepConfirmedAt/updatedAt/version 并 upsert，返回 record+timeline；错误沿用 DomainError。
+- 注入：AppContainer 实例化并传入 TodayViewModel，沿用既有 repo/helper，不新造依赖。
+- Today VM/UI：新增 `canShowWakeButton`（夜灯 ON 且 dayKey=今日且未过 cutoff）与 `undoSleepNow`（沿用 confirm 的 dayKey 选取），夜窗/早睡内撤销后调用 `scheduleNotifications()` 重排夜间提醒，其他时段仅熄灯；toast/错误本地化，NightGuard/灯链不暴露入口。
+- 本地化：新增 `home.button.wake`、`night.undo.success`、`night.undo.notOn`、`night.undo.tooLate`，中英文对应。
+
 ## 新版本更新（1.4.0）
 - 目的：落地夜间守护多态（早睡/窗口/过期/已完成）与时间窗口规则，CTA/通知/用例统一按 dayKey 运转，提前睡觉也可点亮夜灯并清除当晚夜间提醒。
 - 范围：Today 夜间入口与夜页多态展示、通知 deeplink dayKey 透传、ConfirmSleep/RejectNight 判定与错误文案、夜窗/早睡窗口/截止时间计算与调度刷新；不触碰非夜间相关模块。
@@ -11,7 +374,6 @@
 [Today @18:30, 日灯ON/夜灯OFF, earlyStart<=now<nightStart]
 承诺片段
 [ 我准备睡啦 ]          ← 早睡入口
-hint: 比计划早睡也算守护今晚
 
 [Today @22:45, 窗口内]
 承诺片段
@@ -20,7 +382,6 @@ hint: 比计划早睡也算守护今晚
 [Today 00:40, 过期且<05:00]
 承诺片段
 [ 今晚守护已结束 ]  (弱化)
-hint: 已超过最晚入睡时间
 ```
 
 ### ASCII 原型（NightGuard 多态）
@@ -365,7 +726,6 @@ Text(value).daylight(.body2Medium,
 |                                                      |
 | Profile                                              |
 |  Nickname: [ Zora                 ][Done]            |
-|  hint: auto-saves on Done or when the field blurs    |
 |                                                      |
 | Reminder                                             |
 |  Day time      [ 08:00 ]                             |

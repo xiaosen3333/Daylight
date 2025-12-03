@@ -10,6 +10,9 @@ final class AppContainer: ObservableObject {
     private let configuration: AppConfiguration
     private var syncReplayer: SyncReplayer?
     private var pathMonitor: NWPathMonitor?
+    private var timeChangeMonitor: TimeChangeMonitor?
+    private var dateHelper = DaylightDateHelper.withCurrentEnvironment()
+    private var notificationScheduler = NotificationScheduler.withCurrentEnvironment()
     private let monitorQueue = DispatchQueue(label: "daylight.network.monitor")
 
     init(configuration: AppConfiguration = .load()) {
@@ -17,9 +20,10 @@ final class AppContainer: ObservableObject {
     }
 
     func bootstrap() {
+        dateHelper = DaylightDateHelper.withCurrentEnvironment()
+        notificationScheduler = NotificationScheduler.withCurrentEnvironment()
         Task {
             do {
-                let dateHelper = DaylightDateHelper()
                 ForegroundNotificationDelegate.shared.activate()
 
                 let userLocal = UserLocalDataSource()
@@ -46,30 +50,32 @@ final class AppContainer: ObservableObject {
                                                       dateHelper: dateHelper)
                 let setCommitment = SetDayCommitmentUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let confirmSleep = ConfirmSleepUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
+                let undoSleep = UndoSleepUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let rejectNight = RejectNightUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let loadLightChain = LoadLightChainUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let streak = GetStreakUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
                 let updateSettings = UpdateSettingsUseCase(settingsRepository: settingsRepository)
                 let loadMonth = LoadMonthRecordsUseCase(dayRecordRepository: dayRecordRepository, dateHelper: dateHelper)
-                let scheduler = NotificationScheduler()
 
                 let viewModel = TodayViewModel(
                     userRepository: userRepository,
                     loadTodayState: loadToday,
                     setDayCommitment: setCommitment,
                     confirmSleep: confirmSleep,
+                    undoSleep: undoSleep,
                     rejectNight: rejectNight,
                     loadLightChain: loadLightChain,
                     getStreak: streak,
                     updateSettings: updateSettings,
                     loadMonth: loadMonth,
                     dateHelper: dateHelper,
-                    notificationScheduler: scheduler,
+                    notificationScheduler: notificationScheduler,
                     syncReplayer: syncReplayer
                 )
 
                 self.todayViewModel = viewModel
                 self.syncReplayer = syncReplayer
+                self.startTimeChangeMonitor()
                 self.startNetworkMonitor(with: syncReplayer)
                 replayAndUpdate(reason: .appLaunch)
                 self.errorMessage = nil
@@ -107,7 +113,31 @@ final class AppContainer: ObservableObject {
         }
     }
 
+    private func startTimeChangeMonitor() {
+        timeChangeMonitor?.stop()
+        guard todayViewModel != nil else { return }
+        let monitor = TimeChangeMonitor { [weak self] event in
+            Task { @MainActor [weak self] in
+                self?.handleTimeChange(event: event)
+            }
+        }
+        monitor.start()
+        timeChangeMonitor = monitor
+    }
+
+    private func handleTimeChange(event: TimeChangeEvent) {
+        let helper = DaylightDateHelper.withCurrentEnvironment()
+        let scheduler = NotificationScheduler.withCurrentEnvironment()
+        dateHelper = helper
+        notificationScheduler = scheduler
+        todayViewModel?.updateTimeDependencies(dateHelper: helper, notificationScheduler: scheduler)
+        Task {
+            await todayViewModel?.handleTimeChange(event: event)
+        }
+    }
+
     deinit {
         pathMonitor?.cancel()
+        timeChangeMonitor?.stop()
     }
 }

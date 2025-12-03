@@ -1,10 +1,8 @@
 import SwiftUI
-import UIKit
 
 /// 主页面对齐 docs/ui/mainscreen.png
 struct TodayView: View {
     @StateObject var viewModel: TodayViewModel
-    @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @State private var showDayPage = false
     @State private var showNightPage = false
@@ -64,6 +62,13 @@ struct TodayView: View {
                                         .padding(.top, 6)
                                     if showSleepCTA {
                                         sleepCTAButton
+                                    }
+                                    if viewModel.canShowWakeButton() {
+                                        DaylightCTAButton(title: NSLocalizedString("home.button.wake", comment: ""),
+                                                          kind: .dayPrimary) {
+                                            Task { await viewModel.undoSleepNow() }
+                                        }
+                                        .padding(.top, 4)
                                     }
                                 }
                             }
@@ -127,46 +132,30 @@ struct TodayView: View {
                     showSettingsPage = true
                 }
             }
-            .alert("提示", isPresented: errorAlertBinding) {
-                Button(NSLocalizedString("common.confirm", comment: ""), role: .cancel) {
-                    viewModel.state.errorMessage = nil
-                }
-            } message: {
-                Text(viewModel.state.errorMessage ?? "")
-            }
-            .alert(NSLocalizedString("notification.permission.title", comment: ""),
-                   isPresented: $viewModel.showNotificationPrompt) {
-                Button(NSLocalizedString("notification.permission.settings", comment: "")) {
-                    openSettings()
-                    viewModel.showNotificationPrompt = false
-                }
-                Button(NSLocalizedString("notification.permission.later", comment: ""), role: .cancel) {
-                    viewModel.showNotificationPrompt = false
-                }
-            } message: {
-                Text(NSLocalizedString("notification.permission.body", comment: ""))
-            }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task {
                     _ = await viewModel.refreshIfNeeded(trigger: .foreground, includeMonth: showStats)
+                    await viewModel.handleNotificationRecovery()
                     if showStats {
                         await loadStatsData()
                     }
                 }
             }
-        }
-    }
-
-    private var errorAlertBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.state.errorMessage != nil },
-            set: { isShowing in
-                if !isShowing {
-                    viewModel.state.errorMessage = nil
+            .onChange(of: viewModel.recoveryAction) { _, action in
+                guard let action else { return }
+                switch action {
+                case .day:
+                    showDayPage = true
+                case .night(let dayKey):
+                    viewModel.prepareNightPage(dayKey: dayKey)
+                    showNightPage = true
+                case .none:
+                    break
                 }
+                viewModel.recoveryAction = nil
             }
-        )
+        }
     }
 
     private var background: some View {
@@ -345,11 +334,6 @@ struct TodayView: View {
         return record.date
     }
 
-    private func openSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        openURL(url)
-    }
-
     private enum HomeLampStatus {
         case off, dayOnly, both
     }
@@ -412,25 +396,17 @@ struct TodayView: View {
         }
     }
 
-    private func nightCTAConfig(for context: TodayViewModel.NightGuardContext) -> (title: String, hint: String?, usePrimary: Bool)? {
+    private func nightCTAConfig(for context: TodayViewModel.NightGuardContext) -> String? {
         switch context.phase {
         case .early:
-            return (NSLocalizedString("home.button.sleep.early", comment: ""), NSLocalizedString("home.cta.early.hint", comment: ""), true)
+            return NSLocalizedString("home.button.sleep.early", comment: "")
         case .inWindow:
-            return (NSLocalizedString("home.button.sleep", comment: ""), nil, true)
+            return NSLocalizedString("home.button.sleep", comment: "")
         case .expired:
-            return (NSLocalizedString("home.button.sleep.expired", comment: ""), NSLocalizedString("home.cta.expired.hint", comment: ""), false)
+            return NSLocalizedString("home.button.sleep.expired", comment: "")
         default:
             return nil
         }
-    }
-
-    private func commitmentPreview(for context: TodayViewModel.NightGuardContext, maxLength: Int = 32) -> String? {
-        guard let text = context.record.commitmentText?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else { return nil }
-        if text.count <= maxLength { return text }
-        let prefix = text.prefix(maxLength)
-        return "\(prefix)…"
     }
 
     private func openNight(with context: TodayViewModel.NightGuardContext) {
@@ -441,33 +417,13 @@ struct TodayView: View {
     private func nightCTAContent(for context: TodayViewModel.NightGuardContext) -> some View {
         Group {
             if let config = nightCTAConfig(for: context) {
-                VStack(spacing: 6) {
-                    if let preview = commitmentPreview(for: context) {
-                        Text(preview)
-                            .daylight(.body,
-                                      color: .white.opacity(DaylightTextOpacity.secondary),
-                                      alignment: .center,
-                                      lineLimit: 2)
-                            .padding(.horizontal, 8)
-                    }
-
-                    if config.usePrimary {
-                        DaylightPrimaryButton(title: config.title) {
-                            openNight(with: context)
-                        }
-                    } else {
-                        DaylightSecondaryButton(title: config.title) {
-                            openNight(with: context)
-                        }
-                    }
-                    if let hint = config.hint {
-                        Text(hint)
-                            .daylight(.footnote,
-                                      color: .white.opacity(DaylightTextOpacity.secondary),
-                                      alignment: .center)
+                VStack(spacing: 4) {
+                    DaylightCTAButton(title: config,
+                                      kind: .dayPrimary) {
+                        openNight(with: context)
                     }
                 }
-                .padding(.top, 4)
+                .padding(.top, 2)
             }
         }
     }

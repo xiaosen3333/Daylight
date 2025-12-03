@@ -1,4 +1,4 @@
-# Daylight Design System v1.2.0
+# Daylight Design System v1.2.1
 
 > **核心原则**：所有视觉样式通过 Design Tokens 统一管理，页面代码仅引用 Token，禁止硬编码样式值。
 
@@ -168,9 +168,32 @@
 
 ## 6. Components 组件
 
-### 6.1 DaylightPrimaryButton
+### 6.1 DaylightCTAButton
 
-主操作按钮，用于"开始今天"、"准备入睡"、"确认"等场景。
+统一 CTA 按钮入口，按 kind 切换日/夜/幽灵样式。
+
+```swift
+DaylightCTAButton(
+    title: "开始今天",
+    kind: .dayPrimary,    // .nightPrimary / .ghost
+    isEnabled: true,      // 可选，默认 true
+    isLoading: false,     // 可选，默认 false
+    icon: "checkmark"     // 可选，夜间态可加 SF Symbol
+) {
+    // action
+}
+```
+
+**样式与场景**：
+- `.dayPrimary`：背景 `actionPrimary`、文字 `headline + white 90%`，用于 Today/DayCommitment 等浅色背景 CTA。
+- `.nightPrimary`：背景 `bgOverlay12`、文字/图标 `subheadSemibold + glowGold 90%`，用于 NightGuard 或其他夜色/深色背景 CTA，支持 loading。
+- `.ghost`：背景 `bgOverlay08`、文字 `white 90%`，用于开发者/轻量入口。
+- 圆角：日/夜 `button (28pt)`，ghost `xs (12pt)`；内边距：日/夜 16pt，ghost 10pt；loading 显示内置 `ProgressView` 并阻断点击。
+- 兼容：`DaylightPrimaryButton` / `DaylightSecondaryButton` / `DaylightGhostButton` 作为别名内部转调，推荐新代码直接使用 `DaylightCTAButton(kind:)`。
+
+---
+
+### 6.2 DaylightPrimaryButton（兼容别名）
 
 ```swift
 DaylightPrimaryButton(
@@ -182,57 +205,44 @@ DaylightPrimaryButton(
 }
 ```
 
-**样式**：
-- 背景：`actionPrimary`
-- 文字：`headline` + `white 90%`
-- 圆角：`button (28pt)`
-- 内边距：垂直 16pt
+> 内部调用 `DaylightCTAButton(kind: .dayPrimary)`，用于浅色背景主操作。
 
 ---
 
-### 6.2 DaylightSecondaryButton
-
-次级操作按钮，用于"确认入睡"等场景。
+### 6.3 DaylightSecondaryButton（兼容别名）
 
 ```swift
 DaylightSecondaryButton(
     title: "确认入睡",
     icon: "checkmark",    // 可选
-    isEnabled: true       // 可选
+    isEnabled: true,      // 可选
+    isLoading: false      // 可选
 ) {
     // action
 }
 ```
 
-**样式**：
-- 背景：`bgOverlay12`
-- 文字/图标：`glowGold 90%`
-- 字体：`subheadSemibold (20pt)`
-- 圆角：`button (28pt)`
+> 内部调用 `DaylightCTAButton(kind: .nightPrimary)`，用于夜空/深色背景 CTA。
 
 ---
 
-### 6.3 DaylightGhostButton
-
-幽灵按钮，用于 Settings 开发者操作等场景。
+### 6.4 DaylightGhostButton（兼容别名）
 
 ```swift
 DaylightGhostButton(
     title: "触发日间通知",
-    isEnabled: true       // 可选
+    isEnabled: true,      // 可选
+    isLoading: false      // 可选
 ) {
     // action
 }
 ```
 
-**样式**：
-- 背景：`bgOverlay08`
-- 文字：`white 90%`
-- 圆角：`xs (12pt)`
+> 内部调用 `DaylightCTAButton(kind: .ghost)`，用于开发者或轻量操作。
 
 ---
 
-### 6.4 GlowingSun / GlowingMoon
+### 6.5 GlowingSun / GlowingMoon
 
 发光天体组件，用于 Today 和 NightGuard 页面。
 
@@ -243,7 +253,7 @@ GlowingMoon(size: 120)
 
 ---
 
-### 6.5 LightDot
+### 6.6 LightDot
 
 光点组件，用于 Today 页面的 7 日连续记录展示。
 
@@ -297,20 +307,21 @@ LightDot(status: .full)    // .full / .half / .off
 ### 7.5 按钮使用
 
 ```swift
-// 主按钮
-DaylightPrimaryButton(title: "确认") {
+// 统一入口
+DaylightCTAButton(title: "确认", kind: .dayPrimary) {
+    // action
+}
+DaylightCTAButton(title: "入睡", kind: .nightPrimary, isLoading: true) {
+    // action
+}
+DaylightCTAButton(title: "触发通知", kind: .ghost) {
     // action
 }
 
-// 次级按钮
-DaylightSecondaryButton(title: "入睡", icon: "checkmark") {
-    // action
-}
-
-// 幽灵按钮
-DaylightGhostButton(title: "触发通知") {
-    // action
-}
+// 兼容别名
+DaylightPrimaryButton(title: "确认") { /* uses .dayPrimary */ }
+DaylightSecondaryButton(title: "入睡") { /* uses .nightPrimary */ }
+DaylightGhostButton(title: "触发通知") { /* uses .ghost */ }
 ```
 
 ### 7.6 文本统一入口（Text.daylight）
@@ -352,6 +363,7 @@ Text("说明文案")
 Daylight/DesignSystem/
 ├── DesignTokens.swift          # 所有 Token 定义
 └── Components/
+    ├── DaylightCTAButton.swift # Day/Night/Ghost CTA 统一入口
     ├── PrimaryButton.swift     # DaylightPrimaryButton
     ├── SecondaryButton.swift   # DaylightSecondaryButton
     ├── GhostButton.swift       # DaylightGhostButton
@@ -366,5 +378,6 @@ Daylight/DesignSystem/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| 1.2.1 | 2024-12 | 新增 DaylightCTAButton，旧主/次/幽灵按钮作为别名收敛样式 |
 | 1.2.0 | 2024-11 | 完成全量迁移，移除废弃 Token，组件化主要按钮 |
 | 1.0.0 | 2024-10 | 初始 Token 定义 |

@@ -10,6 +10,11 @@ struct StreakResult {
     let longest: Int
 }
 
+struct UndoSleepResult {
+    let record: DayRecord
+    let timeline: NightTimeline
+}
+
 final class LoadTodayStateUseCase {
     private let dayRecordRepository: DayRecordRepository
     private let settingsRepository: SettingsRepository
@@ -119,6 +124,39 @@ final class ConfirmSleepUseCase {
     }
 }
 
+final class UndoSleepUseCase {
+    private let dayRecordRepository: DayRecordRepository
+    private let dateHelper: DaylightDateHelper
+
+    init(dayRecordRepository: DayRecordRepository, dateHelper: DaylightDateHelper) {
+        self.dayRecordRepository = dayRecordRepository
+        self.dateHelper = dateHelper
+    }
+
+    func execute(userId: String,
+                 settings: Settings,
+                 dayKey: String? = nil,
+                 now: Date = Date()) async throws -> UndoSleepResult {
+        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: dayKey)
+        var record = try await dayRecordRepository.record(for: timeline.dayKey, userId: userId)
+            ?? defaultRecord(for: userId, date: timeline.dayKey)
+
+        guard record.dayLightStatus == .on, record.nightLightStatus == .on else {
+            throw DomainError.invalidState(NSLocalizedString("night.undo.notOn", comment: ""))
+        }
+        guard now < timeline.cutoff else {
+            throw DomainError.invalidState(NSLocalizedString("night.undo.tooLate", comment: ""))
+        }
+
+        record.nightLightStatus = .off
+        record.sleepConfirmedAt = nil
+        record.updatedAt = now
+        record.version += 1
+        try await dayRecordRepository.upsert(record, userId: userId)
+        return UndoSleepResult(record: record, timeline: timeline)
+    }
+}
+
 final class RejectNightUseCase {
     private let dayRecordRepository: DayRecordRepository
     private let dateHelper: DaylightDateHelper
@@ -167,7 +205,8 @@ final class LoadLightChainUseCase {
     }
 
     func execute(userId: String, days: Int, settings: Settings) async throws -> [DayRecord] {
-        let targetDates = generateDates(days: days, reference: Date(), settings: settings)
+        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
+        let targetDates = dateHelper.recentDayKeys(days: days, reference: Date(), nightWindow: window)
         let sortedDates = targetDates.sorted()
         guard let first = sortedDates.first, let last = sortedDates.last else { return [] }
 
@@ -183,20 +222,6 @@ final class LoadLightChainUseCase {
             }
         }
         return results.sorted { $0.date < $1.date }
-    }
-
-    private func generateDates(days: Int, reference: Date, settings: Settings) -> [String] {
-        var dates: [String] = []
-        var calendar = Calendar.current
-        calendar.timeZone = dateHelper.timeZone
-        let baseString = dateHelper.localDayString(for: reference, nightWindow: NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd))
-        let baseDate = dateHelper.dayFormatter.date(from: baseString) ?? reference
-        for offset in 0..<days {
-            if let date = calendar.date(byAdding: .day, value: -offset, to: baseDate) {
-                dates.append(dateHelper.dayFormatter.string(from: date))
-            }
-        }
-        return dates
     }
 }
 
@@ -215,30 +240,23 @@ final class GetStreakUseCase {
         self.dateHelper = dateHelper
     }
 
-    func execute(userId: String) async throws -> StreakResult {
-        let records = try await dayRecordRepository.latestRecords(limit: 60, userId: userId).sorted { $0.date < $1.date }
-        let current = computeCurrent(records: records)
+    func execute(userId: String, settings: Settings) async throws -> StreakResult {
+        let limit = 60
+        let records = try await dayRecordRepository.latestRecords(limit: limit, userId: userId).sorted { $0.date < $1.date }
+        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
+        let dayKeys = dateHelper.recentDayKeys(days: limit, reference: Date(), nightWindow: window)
+        let recordMap = Dictionary(uniqueKeysWithValues: records.map { ($0.date, $0) })
+        let current = computeCurrent(dayKeys: dayKeys, recordMap: recordMap)
         let longest = max(current, computeLongest(records: records))
         return StreakResult(current: current, longest: longest)
     }
 
-    private func computeCurrent(records: [DayRecord]) -> Int {
+    private func computeCurrent(dayKeys: [String], recordMap: [String: DayRecord]) -> Int {
         var streak = 0
-        var lastDate: Date?
-        for record in records.reversed() {
-            guard let day = dateHelper.dayFormatter.date(from: record.date) else { continue }
-            if record.dayLightStatus == .on && record.nightLightStatus == .on {
-                if let previous = lastDate,
-                   let expected = calendar.date(byAdding: .day, value: -1, to: previous),
-                   !calendar.isDate(day, equalTo: expected, toGranularity: .day) {
-                    break
-                }
-                streak += 1
-                lastDate = day
-            } else {
-                if streak > 0 { break }
-                lastDate = nil
-            }
+        for dayKey in dayKeys {
+            guard let record = recordMap[dayKey] else { break }
+            guard record.dayLightStatus == .on, record.nightLightStatus == .on else { break }
+            streak += 1
         }
         return streak
     }

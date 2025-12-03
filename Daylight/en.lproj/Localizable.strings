@@ -10,8 +10,7 @@
 "home.button.sleep" = "I'm ready to sleep";
 "home.button.sleep.early" = "I'm turning in early";
 "home.button.sleep.expired" = "Tonight's guard has wrapped";
-"home.cta.early.hint" = "Turning in early still honors tonight.";
-"home.cta.expired.hint" = "Past tonight's latest bedtime—rest up.";
+"home.button.wake" = "Suddenly awake";
 
 "notification.day.title" = "Leave a line for tonight";
 "notification.day.body" = "What do you gain if you don't stay up tonight?";
@@ -75,23 +74,23 @@
 
 "common.confirm" = "Okay";
 "common.cancel" = "Never mind";
+"error.timeChange" = "System time changed, please try again.";
 
 "night.title" = "Daytime you is reminding you";
 "night.subtitle.placeholder" = "This is what you left for yourself";
+"night.subtitle.notReady" = "Write your daytime line to light up the night lamp";
 "night.button" = "I'm ready to sleep";
 "night.button.early" = "I'm ready to sleep early";
+"night.button.commit" = "Write my commitment";
 "night.button.continue" = "Keep using my phone";
 "night.button.home" = "Back to home";
 "night.button.adjust" = "Adjust reminder time";
-"night.hint.dayKey" = "Reminder for %@";
 "night.state.expired.title" = "Tonight's guard has ended";
 "night.state.completed.title" = "Tonight's guard is done";
 "night.state.notReady.title" = "Turn on the daytime lamp first";
-"night.hint.expired" = "You've passed tonight's latest bedtime—rest up and try again tomorrow.";
-"night.hint.completed" = "Tonight's lamp is already glowing. Thanks for keeping the promise.";
-"night.hint.notReady" = "Light up the daytime lamp before tonight's guard begins.";
-"night.hint.tooEarly" = "It's not time yet—come back after %@ and take it easy for now.";
-"night.hint.early" = "Turning in earlier still counts toward tonight's promise.";
+"night.undo.success" = "Night lamp undone";
+"night.undo.notOn" = "Night lamp isn't on—nothing to undo";
+"night.undo.tooLate" = "Undo window has passed";
 
 "dev.title" = "Developer Tools";
 "dev.trigger.day" = "Trigger day reminder";
@@ -104,6 +103,7 @@
 "settings.night.start" = "Earliest bedtime";
 "settings.night.end" = "Latest bedtime";
 "settings.night.interval" = "Night reminder interval";
+"settings.night.disable.confirm" = "No more reminders tonight. You can turn them back on in Settings.";
 "settings.language.section" = "Language";
 "settings.language.system" = "System";
 "settings.dev.section" = "Developer";
