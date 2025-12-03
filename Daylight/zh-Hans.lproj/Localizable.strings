@@ -71,6 +71,11 @@
 "commit.suggestion1" = "明天醒来会更舒服一点";
 "commit.suggestion2" = "有力气做喜欢的事";
 "commit.suggestion3" = "身体会感谢你";
+"commit.suggestion4" = "早上不慌不忙地开始一天";
+"commit.suggestion5" = "夜晚属于休息，不留给手机";
+"commit.suggestion6" = "清醒时做事，睡前就能安心";
+"commit.suggestion7" = "给自己一个温柔的梦";
+"commit.suggestion8" = "早点睡才有力气照顾喜欢的人";
 
 "common.confirm" = "好的";
 "common.cancel" = "算了";

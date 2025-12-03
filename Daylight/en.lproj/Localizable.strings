@@ -71,6 +71,11 @@
 "commit.suggestion1" = "Wake up feeling better tomorrow";
 "commit.suggestion2" = "Have energy for what I love";
 "commit.suggestion3" = "My body will thank me";
+"commit.suggestion4" = "Start the morning unrushed";
+"commit.suggestion5" = "Keep tonight for rest, not my phone";
+"commit.suggestion6" = "Rest now so my focus stays sharp";
+"commit.suggestion7" = "Give myself a gentle dream";
+"commit.suggestion8" = "Rest early so I can care for who I love";
 
 "common.confirm" = "Okay";
 "common.cancel" = "Never mind";

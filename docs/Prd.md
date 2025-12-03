@@ -1,5 +1,31 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.12）
+- 目的：日间承诺推荐理由升级为 3 槽原地补位，基于 8 条本地文案池避免重复与空槽；版本号 1.4.12。
+- 范围：DayCommitmentPage TextField 绑定 viewModel.commitmentText，推荐区改为 ForEach 三槽胶囊按钮（plain）；TodayViewModel 新增 allSuggestions(8)、suggestionsVisible/usedSuggestionIds 状态与 setupSuggestions/pickSuggestion/onTextChanged/refillSlot 补位逻辑；提交按钮 1–80 字启用，复用 submitCommitment；MARKETING_VERSION 同步。
+- 影响面：仅日间承诺页 UI/交互与本地化文案新增；首页、NightGuard、Settings 等其他模块逻辑与样式不变，Design tokens/通知/UseCase 未改。
+- 验收要点：进入页面随机 3 条且不等于当前输入、互不重复；点击槽 2 -> commitmentText 更新，槽 2 立刻换新且槽 1/3 不动，多次点击同槽持续换新直至池耗尽再回收；手动输入等于某槽文案会清空该槽并按规则补满；按钮仅在 1–80 字启用，提交成功后返回；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（日间承诺 3 槽原地补位）
+```
+背景: DaylightColors.bgPrimary
+[GlowingSun 120]
+[标题 commit.title.full]
+
+[胶囊 TextField 占位 commit.placeholder.short 绑定 commitmentText]
+[槽1: 推荐A]  (plain 胶囊按钮)
+[槽2: 推荐B]  (点击 -> commitmentText=文案, 槽2原地换新)
+[槽3: 推荐C]  (槽为空时显示空胶囊占位)
+
+[DaylightPrimaryButton "common.confirm" 1–80 字启用]
+```
+
+### 技术架构与要点更新
+- TodayViewModel：新增 allSuggestions（本地化 8 条）、suggestionsVisible[3]、usedSuggestionIds；setupSuggestions 基于当前输入随机填充三槽且跳过相同文案，refillSlot 仅替换指定槽并优先未用文案，不足时回收已用仍避免当前输入/重复，onTextChanged 命中槽文案时清空并补位。
+- DayCommitmentPage：TextField 双向绑定 commitmentText，onChange 限制 80 字并驱动 onTextChanged；推荐区 ForEach 渲染三槽胶囊 Button plain 样式，空槽用半透明胶囊占位；点击槽调用 pickSuggestion，提交按钮 isEnabled 取决于 1–80 字并复用 submitCommitment 流程。
+- 本地化：新增 commit.suggestion4...8（中英）；DesignSystem 组件沿用 DaylightPrimaryButton / DaylightColors.actionPrimary / DaylightRadius.capsule，无新增样式。
+- 版本：MARKETING_VERSION 更新至 1.4.12，仅该版本号变更，其他模块未调整。
+
 ## 新版本更新（1.4.11）
 - 目的：统一 Day/Night CTA 样式入口，避免组件串场，版本号 1.4.11。
 - 范围：DesignSystem 新增 DaylightCTAButton(kind) 并为 Primary/Secondary/Ghost 提供兼容别名；Today 首页夜间 CTA（early/inWindow/expired）与 wake 按钮统一 dayPrimary；NightGuard 所有阶段 CTA（含 adjust）统一 nightPrimary 并补齐 loading；Design tokens 不变。

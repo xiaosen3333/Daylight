@@ -5,6 +5,18 @@ import UserNotifications
 
 @MainActor
 final class TodayViewModel: ObservableObject {
+    struct Suggestion: Identifiable, Equatable {
+        let id: String
+        let text: String
+    }
+
+    struct SuggestionSlot: Identifiable, Equatable {
+        let id: String
+        let text: String?
+
+        var isEmpty: Bool { text?.isEmpty ?? true }
+    }
+
     enum RefreshTrigger {
         case manual, timer, foreground
     }
@@ -71,6 +83,7 @@ final class TodayViewModel: ObservableObject {
     @Published var settingsSyncState: SettingsSyncState = .idle
     @Published var nightDayKey: String?
     @Published var recoveryAction: RecoveryAction?
+    @Published var suggestionsVisible: [SuggestionSlot] = (0..<3).map { SuggestionSlot(id: "slot-\($0)-empty", text: nil) }
 
     private let userRepository: UserRepository
     private let loadTodayState: LoadTodayStateUseCase
@@ -86,10 +99,22 @@ final class TodayViewModel: ObservableObject {
     private var notificationScheduler: NotificationScheduler
     private let syncReplayer: SyncReplayer
 
+    let allSuggestions: [Suggestion] = [
+        Suggestion(id: "commit.suggestion1", text: NSLocalizedString("commit.suggestion1", comment: "")),
+        Suggestion(id: "commit.suggestion2", text: NSLocalizedString("commit.suggestion2", comment: "")),
+        Suggestion(id: "commit.suggestion3", text: NSLocalizedString("commit.suggestion3", comment: "")),
+        Suggestion(id: "commit.suggestion4", text: NSLocalizedString("commit.suggestion4", comment: "")),
+        Suggestion(id: "commit.suggestion5", text: NSLocalizedString("commit.suggestion5", comment: "")),
+        Suggestion(id: "commit.suggestion6", text: NSLocalizedString("commit.suggestion6", comment: "")),
+        Suggestion(id: "commit.suggestion7", text: NSLocalizedString("commit.suggestion7", comment: "")),
+        Suggestion(id: "commit.suggestion8", text: NSLocalizedString("commit.suggestion8", comment: ""))
+    ]
+
     private var user: User?
     private var lastDayKey: String?
     private var dayChangeTask: Task<Void, Never>?
     private var hasPendingSignificantTimeChange = false
+    private var usedSuggestionIds: Set<String> = []
 
     var currentUserId: String? { user?.id }
 
@@ -168,6 +193,70 @@ final class TodayViewModel: ObservableObject {
 
     func applySuggestedReason(_ text: String) {
         commitmentText = text
+    }
+
+    func setupSuggestions(initialText: String) {
+        let normalized = normalize(initialText)
+        usedSuggestionIds = []
+        var available = allSuggestions.filter { normalize($0.text) != normalized }.shuffled()
+        var slots: [SuggestionSlot] = []
+        for index in 0..<3 {
+            if let suggestion = available.popLast() {
+                usedSuggestionIds.insert(suggestion.id)
+                slots.append(SuggestionSlot(id: suggestion.id, text: suggestion.text))
+            } else {
+                slots.append(makeEmptySlot(index: index))
+            }
+        }
+        suggestionsVisible = slots
+    }
+
+    func pickSuggestion(at index: Int) {
+        guard suggestionsVisible.indices.contains(index),
+              let text = suggestionsVisible[index].text else { return }
+        applySuggestedReason(text)
+        refillSlot(index: index, excluding: text)
+    }
+
+    func onTextChanged(_ text: String) {
+        let normalized = normalize(text)
+        for index in suggestionsVisible.indices {
+            if normalize(suggestionsVisible[index].text) == normalized {
+                suggestionsVisible[index] = makeEmptySlot(index: index)
+                refillSlot(index: index, excluding: text)
+            }
+        }
+    }
+
+    func refillSlot(index: Int, excluding: String) {
+        guard suggestionsVisible.indices.contains(index) else { return }
+        let normalizedExcluding = normalize(excluding)
+        let normalizedInput = normalize(commitmentText)
+        let occupiedIds = suggestionsVisible.enumerated().compactMap { offset, slot -> String? in
+            guard offset != index, slot.text != nil else { return nil }
+            return slot.id
+        }
+        let filtered = allSuggestions.filter {
+            !occupiedIds.contains($0.id) &&
+            normalize($0.text) != normalizedExcluding &&
+            normalize($0.text) != normalizedInput
+        }
+        let unused = filtered.filter { !usedSuggestionIds.contains($0.id) }
+        let pool = unused.isEmpty ? filtered : unused
+        guard let next = pool.randomElement() else {
+            suggestionsVisible[index] = makeEmptySlot(index: index)
+            return
+        }
+        usedSuggestionIds.insert(next.id)
+        suggestionsVisible[index] = SuggestionSlot(id: next.id, text: next.text)
+    }
+
+    private func makeEmptySlot(index: Int) -> SuggestionSlot {
+        SuggestionSlot(id: "slot-\(index)-empty-\(UUID().uuidString)", text: nil)
+    }
+
+    private func normalize(_ text: String?) -> String {
+        text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     func submitCommitment() async {
