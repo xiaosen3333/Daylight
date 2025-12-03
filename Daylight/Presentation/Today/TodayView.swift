@@ -575,6 +575,9 @@ struct DayCommitmentPage: View {
                 viewModel.commitmentText = initialText
                 viewModel.setupSuggestions(initialText: initialText)
             }
+            .onChange(of: viewModel.locale) { _, _ in
+                viewModel.setupSuggestions(initialText: viewModel.commitmentText)
+            }
             .onChange(of: viewModel.commitmentText) { _, newValue in
                 let limited = String(newValue.prefix(maxCommitmentLength))
                 if limited != newValue {

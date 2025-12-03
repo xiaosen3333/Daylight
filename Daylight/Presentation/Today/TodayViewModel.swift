@@ -99,16 +99,18 @@ final class TodayViewModel: ObservableObject {
     private var notificationScheduler: NotificationScheduler
     private let syncReplayer: SyncReplayer
 
-    let allSuggestions: [Suggestion] = [
-        Suggestion(id: "commit.suggestion1", text: NSLocalizedString("commit.suggestion1", comment: "")),
-        Suggestion(id: "commit.suggestion2", text: NSLocalizedString("commit.suggestion2", comment: "")),
-        Suggestion(id: "commit.suggestion3", text: NSLocalizedString("commit.suggestion3", comment: "")),
-        Suggestion(id: "commit.suggestion4", text: NSLocalizedString("commit.suggestion4", comment: "")),
-        Suggestion(id: "commit.suggestion5", text: NSLocalizedString("commit.suggestion5", comment: "")),
-        Suggestion(id: "commit.suggestion6", text: NSLocalizedString("commit.suggestion6", comment: "")),
-        Suggestion(id: "commit.suggestion7", text: NSLocalizedString("commit.suggestion7", comment: "")),
-        Suggestion(id: "commit.suggestion8", text: NSLocalizedString("commit.suggestion8", comment: ""))
-    ]
+    var allSuggestions: [Suggestion] {
+        [
+            Suggestion(id: "commit.suggestion1", text: NSLocalizedString("commit.suggestion1", comment: "")),
+            Suggestion(id: "commit.suggestion2", text: NSLocalizedString("commit.suggestion2", comment: "")),
+            Suggestion(id: "commit.suggestion3", text: NSLocalizedString("commit.suggestion3", comment: "")),
+            Suggestion(id: "commit.suggestion4", text: NSLocalizedString("commit.suggestion4", comment: "")),
+            Suggestion(id: "commit.suggestion5", text: NSLocalizedString("commit.suggestion5", comment: "")),
+            Suggestion(id: "commit.suggestion6", text: NSLocalizedString("commit.suggestion6", comment: "")),
+            Suggestion(id: "commit.suggestion7", text: NSLocalizedString("commit.suggestion7", comment: "")),
+            Suggestion(id: "commit.suggestion8", text: NSLocalizedString("commit.suggestion8", comment: ""))
+        ]
+    }
 
     private var user: User?
     private var lastDayKey: String?
