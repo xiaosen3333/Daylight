@@ -19,14 +19,14 @@ struct DaylightApp: App {
                         .id(viewModel.locale.identifier)
                 } else if let error = container.errorMessage {
                     VStack(spacing: 16) {
-                        Text("启动失败")
+                        Text(NSLocalizedString("app.launch_failed", comment: ""))
                             .daylight(.headline)
                         Text(error)
                             .daylight(.body, color: .white.opacity(DaylightTextOpacity.secondary))
                         Button {
                             container.bootstrap()
                         } label: {
-                            Text("重试")
+                            Text(NSLocalizedString("app.retry", comment: ""))
                                 .daylight(.body, color: .white.opacity(DaylightTextOpacity.primary))
                         }
                     }
@@ -36,7 +36,7 @@ struct DaylightApp: App {
                     ZStack {
                         DaylightColors.bgPrimary.ignoresSafeArea()
                         ProgressView {
-                            Text("加载中…")
+                            Text(NSLocalizedString("app.loading", comment: ""))
                                 .daylight(.body, color: .white.opacity(DaylightTextOpacity.primary))
                         }
                         .tint(DaylightColors.glowGold)

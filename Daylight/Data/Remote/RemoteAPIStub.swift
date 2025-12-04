@@ -34,12 +34,6 @@ actor RemoteAPIStub {
         return records
     }
 
-    func fetch(startDate: String, endDate: String, userId: String) async throws -> [DayRecord] {
-        storedRecords
-            .filter { $0.userId == userId && $0.date >= startDate && $0.date <= endDate }
-            .sorted { $0.date < $1.date }
-    }
-
     func upload(settings: Settings) async throws {
         if let idx = storedSettings.firstIndex(where: { $0.userId == settings.userId }) {
             storedSettings[idx] = settings

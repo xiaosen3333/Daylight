@@ -1,5 +1,39 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.16）
+- 目的：拆分 Today/UseCases，幂等启动、时间/通知/数据读写统一守护；版本号 1.4.16。
+- 范围：DaylightUseCases 拆单文件+聚合；TodayViewModel 拆 NotificationCoordinator/TimeObserver/SuggestionsProvider/StatsLoader/NavigationRouter；NotificationScheduler 注入 DaylightDateHelper；AppContainer.bootstrap 幂等+teardown；数据读写 schemaVersion 校验+迁移钩子；启动/加载文案本地化；新增 SwiftLint 配置与关键单测。
+- 影响面：UI/导航保持原样（仅内部拆分）；持久化异常版本回退默认；通知/时间监听去重；无设计变更。
+- 验收要点：重复 onAppear 不重复监控；schemaVersion 不匹配自动丢弃/迁移后恢复默认；三槽推荐仍随机补位；通知重排跨夜/时间变更仍正常；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过，新增测试编译执行。
+
+### ASCII 原型（Today 依赖组件）
+```
+[TodayViewModel]
+  |-- TodayNotificationCoordinator (auth + reschedule)
+  |-- TodayTimeObserver (day boundary watcher)
+  |-- TodaySuggestionsProvider (3-slot pool)
+  |-- TodayStatsLoader (lightChain/streak/month)
+  |-- TodayNavigationRouter (deeplink & prompts)
+```
+
+### ASCII 原型（启动/错误态文案本地化）
+```
++-----------------------------+
+|  Logo / Splash              |
+|  [ActivityIndicator] "加载中…" |
+|  [RetryButton] "重试"       |
+|  [ErrorText] "启动失败"     |
++-----------------------------+
+```
+
+### 技术架构与要点更新
+- UseCases：每个用例独立文件，DayRecord 默认值移至 DayRecordDefaults，DaylightUseCases 聚合依赖。
+- Today：ViewModel 只协调子组件，通知/时间/建议/统计/导航各自封装；建议池本地化常量内收。
+- 通知/时间：NotificationScheduler 复用 DaylightDateHelper（时间解析、夜窗跨日）；时间变更交由 TimeObserver + Coordinator 防重排程。
+- 启动：AppContainer.bootstrap 幂等（isBootstrapped + bootstrapTask），teardown 清理 monitors/sync；DaylightApp 硬编码文案本地化。
+- 数据：FileStorage 增加 readPersistedList + DataMigrating 钩子，schemaVersion 校验失败回退；User/Settings/DayRecord/PendingSync 等写入保留版本号。
+- 质量：新增 SwiftLint 配置（line_length/force_unwrapping/unused_import/cyclomatic_complexity 等），补充 DateHelper/NotificationScheduler/backoff/迁移单测；MARKETING_VERSION=1.4.16。
+
 ## 新版本更新（1.4.15）
 - 目的：统一日历单元模型/色板与日期展示，复用共享组件避免重复定义；版本号 1.4.15。
 - 范围：Presentation/Components/Calendar 新增 DayVisualStatus/dayStatus(for:)/DayVisualStyle(Palette)/DayCell；TodayView、LightChainPage、LightChainVisualizationComponents 改用共享 DayCell/Palette，并使用 DaylightDateHelper.formattedDay 输出日期；月视图补位/选中/打灯逻辑保持。

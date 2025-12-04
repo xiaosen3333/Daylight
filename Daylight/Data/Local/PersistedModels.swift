@@ -6,6 +6,8 @@ struct PersistedList<T: Codable>: Codable {
 }
 
 struct PendingSyncItem: Codable, Identifiable {
+    static let schemaVersion: Int = 1
+
     enum ItemType: String, Codable {
         case dayRecord
         case settings

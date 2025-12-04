@@ -285,7 +285,7 @@ struct TodayView: View {
             selectedRecord = today
         } else {
             let userId = viewModel.currentUserId ?? ""
-            selectedRecord = defaultRecord(for: userId, date: todayKey)
+            selectedRecord = DayRecord.defaultRecord(for: userId, date: todayKey)
         }
         isLoadingStats = false
     }
@@ -429,7 +429,7 @@ struct TodayView: View {
         for day in range {
             if let date = calendar.date(byAdding: .day, value: day - 1, to: startDate) {
                 let dateString = viewModel.dateHelper.dayFormatter.string(from: date)
-                let record = recordMap[dateString] ?? defaultRecord(for: viewModel.currentUserId ?? "", date: dateString)
+                let record = recordMap[dateString] ?? DayRecord.defaultRecord(for: viewModel.currentUserId ?? "", date: dateString)
                 cells.append(DayCell(date: date, record: record, calendar: calendar, formatter: viewModel.dateHelper.dayFormatter))
             }
         }

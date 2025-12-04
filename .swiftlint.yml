@@ -1,0 +1,24 @@
+disabled_rules:
+  - trailing_whitespace
+  - file_length
+
+opt_in_rules:
+  - force_unwrapping
+  - todo
+  - unused_import
+  - cyclomatic_complexity
+
+line_length:
+  warning: 140
+  error: 200
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+excluded:
+  - Daylight/Assets.xcassets
+  - docs
+  - tmp
+  - app store
+  - Daylight/Resources

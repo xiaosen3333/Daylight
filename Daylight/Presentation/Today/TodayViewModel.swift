@@ -5,75 +5,6 @@ import UserNotifications
 
 @MainActor
 final class TodayViewModel: ObservableObject {
-    struct Suggestion: Identifiable, Equatable {
-        let id: String
-        let text: String
-    }
-
-    struct SuggestionSlot: Identifiable, Equatable {
-        let id: String
-        let text: String?
-
-        var isEmpty: Bool { text?.isEmpty ?? true }
-    }
-
-    enum RefreshTrigger {
-        case manual, timer, foreground
-    }
-
-    enum SettingsSyncState: Equatable {
-        case idle
-        case syncing
-        case pending(nextRetryAt: Date?)
-        case failed(nextRetryAt: Date?)
-        case synced
-    }
-
-    enum NightGuardPhase {
-        case notEligible
-        case beforeEarly
-        case early
-        case inWindow
-        case expired
-        case completed
-        case afterCutoff
-    }
-
-    enum RecoveryAction: Equatable {
-        case day
-        case night(dayKey: String)
-        case none
-    }
-
-    struct NightGuardContext {
-        let dayKey: String
-        let record: DayRecord
-        let timeline: NightTimeline
-        let phase: NightGuardPhase
-
-        var allowEarlyConfirm: Bool { phase == .early }
-        var canReject: Bool { phase == .inWindow }
-        var isExpired: Bool { phase == .expired || phase == .afterCutoff }
-        var showHomeCTA: Bool {
-            switch phase {
-            case .early, .inWindow, .expired:
-                return true
-            default:
-                return false
-            }
-        }
-    }
-
-    struct UIState {
-        var isLoading: Bool = false
-        var isSavingCommitment: Bool = false
-        var isSavingNight: Bool = false
-        var record: DayRecord?
-        var settings: Settings?
-        var streak: StreakResult?
-        var errorMessage: String?
-    }
-
     @Published var state = UIState()
     @Published var lightChain: [DayRecord] = []
     @Published var commitmentText: String = ""
@@ -86,72 +17,48 @@ final class TodayViewModel: ObservableObject {
     @Published var suggestionsVisible: [SuggestionSlot] = (0..<3).map { SuggestionSlot(id: "slot-\($0)-empty", text: nil) }
 
     private let userRepository: UserRepository
-    private let loadTodayState: LoadTodayStateUseCase
-    private let setDayCommitment: SetDayCommitmentUseCase
-    private let confirmSleep: ConfirmSleepUseCase
-    private let undoSleep: UndoSleepUseCase
-    private let rejectNight: RejectNightUseCase
-    private let loadLightChain: LoadLightChainUseCase
-    private let getStreak: GetStreakUseCase
-    private let updateSettingsUseCase: UpdateSettingsUseCase
-    private let loadMonthUseCase: LoadMonthRecordsUseCase
+    private let useCases: DaylightUseCases
+    private let statsLoader: TodayStatsLoader
+    private let suggestionsProvider: TodaySuggestionsProvider
+    private let navigationRouter: TodayNavigationRouter
     var dateHelper: DaylightDateHelper
-    private var notificationScheduler: NotificationScheduler
+    private var notificationCoordinator: TodayNotificationCoordinator
+    private let timeObserver: TodayTimeObserver
     private let syncReplayer: SyncReplayer
-
-    var allSuggestions: [Suggestion] {
-        [
-            Suggestion(id: "commit.suggestion1", text: NSLocalizedString("commit.suggestion1", comment: "")),
-            Suggestion(id: "commit.suggestion2", text: NSLocalizedString("commit.suggestion2", comment: "")),
-            Suggestion(id: "commit.suggestion3", text: NSLocalizedString("commit.suggestion3", comment: "")),
-            Suggestion(id: "commit.suggestion4", text: NSLocalizedString("commit.suggestion4", comment: "")),
-            Suggestion(id: "commit.suggestion5", text: NSLocalizedString("commit.suggestion5", comment: "")),
-            Suggestion(id: "commit.suggestion6", text: NSLocalizedString("commit.suggestion6", comment: "")),
-            Suggestion(id: "commit.suggestion7", text: NSLocalizedString("commit.suggestion7", comment: "")),
-            Suggestion(id: "commit.suggestion8", text: NSLocalizedString("commit.suggestion8", comment: ""))
-        ]
-    }
 
     private var user: User?
     private var lastDayKey: String?
-    private var dayChangeTask: Task<Void, Never>?
     private var hasPendingSignificantTimeChange = false
-    private var usedSuggestionIds: Set<String> = []
 
     var currentUserId: String? { user?.id }
 
     init(userRepository: UserRepository,
-         loadTodayState: LoadTodayStateUseCase,
-        setDayCommitment: SetDayCommitmentUseCase,
-        confirmSleep: ConfirmSleepUseCase,
-        undoSleep: UndoSleepUseCase,
-        rejectNight: RejectNightUseCase,
-        loadLightChain: LoadLightChainUseCase,
-        getStreak: GetStreakUseCase,
-        updateSettings: UpdateSettingsUseCase,
-        loadMonth: LoadMonthRecordsUseCase,
-        dateHelper: DaylightDateHelper,
-        notificationScheduler: NotificationScheduler,
-        syncReplayer: SyncReplayer) {
+         useCases: DaylightUseCases,
+         dateHelper: DaylightDateHelper,
+         notificationScheduler: NotificationScheduler,
+         syncReplayer: SyncReplayer,
+         suggestionsProvider: TodaySuggestionsProvider = TodaySuggestionsProvider(),
+         navigationRouter: TodayNavigationRouter = TodayNavigationRouter(),
+         statsLoader: TodayStatsLoader? = nil,
+         timeObserver: TodayTimeObserver? = nil,
+         notificationCoordinator: TodayNotificationCoordinator? = nil) {
         self.userRepository = userRepository
-        self.loadTodayState = loadTodayState
-        self.setDayCommitment = setDayCommitment
-        self.confirmSleep = confirmSleep
-        self.undoSleep = undoSleep
-        self.rejectNight = rejectNight
-        self.loadLightChain = loadLightChain
-        self.getStreak = getStreak
-        self.updateSettingsUseCase = updateSettings
-        self.loadMonthUseCase = loadMonth
+        self.useCases = useCases
         self.dateHelper = dateHelper
-        self.notificationScheduler = notificationScheduler
         self.syncReplayer = syncReplayer
-        // 初始化时同步已保存语言
+        self.suggestionsProvider = suggestionsProvider
+        self.navigationRouter = navigationRouter
+        self.statsLoader = statsLoader ?? TodayStatsLoader(loadLightChain: useCases.loadLightChain,
+                                                          getStreak: useCases.getStreak,
+                                                          loadMonth: useCases.loadMonth)
+        self.notificationCoordinator = notificationCoordinator ?? TodayNotificationCoordinator(notificationScheduler: notificationScheduler,
+                                                                                              dateHelper: dateHelper)
+        self.timeObserver = timeObserver ?? TodayTimeObserver(dateHelper: dateHelper)
         self.locale = LanguageManager.shared.currentLocale
     }
 
     deinit {
-        dayChangeTask?.cancel()
+        timeObserver.cancel()
     }
 
     func onAppear() {
@@ -161,7 +68,7 @@ final class TodayViewModel: ObservableObject {
     func refreshAll(trigger: RefreshTrigger = .manual, includeMonth: Bool = false, rescheduleNotifications: Bool = true) async {
         if state.isLoading { return }
         state.isLoading = true
-        let cachedStatus = notificationScheduler.lastCachedAuthorizationStatus()
+        let cachedStatus = notificationCoordinator.lastCachedAuthorizationStatus()
         _ = trigger
         locale = LanguageManager.shared.currentLocale
         state.errorMessage = nil
@@ -170,7 +77,7 @@ final class TodayViewModel: ObservableObject {
             let user = try await userRepository.currentUser()
             self.user = user
             nickname = user.nickname ?? ""
-            let today = try await loadTodayState.execute(userId: user.id)
+            let today = try await useCases.loadTodayState.execute(userId: user.id)
             state.record = today.record
             state.settings = today.settings
             commitmentText = today.record.commitmentText ?? ""
@@ -198,67 +105,21 @@ final class TodayViewModel: ObservableObject {
     }
 
     func setupSuggestions(initialText: String) {
-        let normalized = normalize(initialText)
-        usedSuggestionIds = []
-        var available = allSuggestions.filter { normalize($0.text) != normalized }.shuffled()
-        var slots: [SuggestionSlot] = []
-        for index in 0..<3 {
-            if let suggestion = available.popLast() {
-                usedSuggestionIds.insert(suggestion.id)
-                slots.append(SuggestionSlot(id: suggestion.id, text: suggestion.text))
-            } else {
-                slots.append(makeEmptySlot(index: index))
-            }
-        }
-        suggestionsVisible = slots
+        suggestionsVisible = suggestionsProvider.setupSuggestions(initialText: initialText)
     }
 
     func pickSuggestion(at index: Int) {
-        guard suggestionsVisible.indices.contains(index),
-              let text = suggestionsVisible[index].text else { return }
-        applySuggestedReason(text)
-        refillSlot(index: index, excluding: text)
+        guard let result = suggestionsProvider.pickSuggestion(at: index,
+                                                              slots: suggestionsVisible,
+                                                              currentInput: commitmentText) else { return }
+        applySuggestedReason(result.0)
+        suggestionsVisible = result.1
     }
 
     func onTextChanged(_ text: String) {
-        let normalized = normalize(text)
-        for index in suggestionsVisible.indices {
-            if normalize(suggestionsVisible[index].text) == normalized {
-                suggestionsVisible[index] = makeEmptySlot(index: index)
-                refillSlot(index: index, excluding: text)
-            }
-        }
-    }
-
-    func refillSlot(index: Int, excluding: String) {
-        guard suggestionsVisible.indices.contains(index) else { return }
-        let normalizedExcluding = normalize(excluding)
-        let normalizedInput = normalize(commitmentText)
-        let occupiedIds = suggestionsVisible.enumerated().compactMap { offset, slot -> String? in
-            guard offset != index, slot.text != nil else { return nil }
-            return slot.id
-        }
-        let filtered = allSuggestions.filter {
-            !occupiedIds.contains($0.id) &&
-            normalize($0.text) != normalizedExcluding &&
-            normalize($0.text) != normalizedInput
-        }
-        let unused = filtered.filter { !usedSuggestionIds.contains($0.id) }
-        let pool = unused.isEmpty ? filtered : unused
-        guard let next = pool.randomElement() else {
-            suggestionsVisible[index] = makeEmptySlot(index: index)
-            return
-        }
-        usedSuggestionIds.insert(next.id)
-        suggestionsVisible[index] = SuggestionSlot(id: next.id, text: next.text)
-    }
-
-    private func makeEmptySlot(index: Int) -> SuggestionSlot {
-        SuggestionSlot(id: "slot-\(index)-empty-\(UUID().uuidString)", text: nil)
-    }
-
-    private func normalize(_ text: String?) -> String {
-        text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        suggestionsVisible = suggestionsProvider.onTextChanged(text,
+                                                               slots: suggestionsVisible,
+                                                               currentInput: commitmentText)
     }
 
     func submitCommitment() async {
@@ -267,7 +128,7 @@ final class TodayViewModel: ObservableObject {
         state.isSavingCommitment = true
         state.errorMessage = nil
         do {
-            let record = try await setDayCommitment.execute(userId: user.id, settings: settings, text: commitmentText)
+            let record = try await useCases.setDayCommitment.execute(userId: user.id, settings: settings, text: commitmentText)
             state.record = record
             try await refreshLightChain()
             try await refreshStreak()
@@ -287,11 +148,11 @@ final class TodayViewModel: ObservableObject {
         state.isSavingNight = true
         state.errorMessage = nil
         do {
-            let record = try await confirmSleep.execute(userId: user.id,
-                                                        settings: settings,
-                                                        allowEarly: allowEarly,
-                                                        dayKey: targetDayKey,
-                                                        now: now)
+            let record = try await useCases.confirmSleep.execute(userId: user.id,
+                                                                 settings: settings,
+                                                                 allowEarly: allowEarly,
+                                                                 dayKey: targetDayKey,
+                                                                 now: now)
             if state.record == nil || state.record?.date == record.date {
                 state.record = record
             }
@@ -323,10 +184,10 @@ final class TodayViewModel: ObservableObject {
         state.isSavingNight = true
         state.errorMessage = nil
         do {
-            let result = try await undoSleep.execute(userId: user.id,
-                                                     settings: settings,
-                                                     dayKey: targetDayKey,
-                                                     now: now)
+            let result = try await useCases.undoSleep.execute(userId: user.id,
+                                                              settings: settings,
+                                                              dayKey: targetDayKey,
+                                                              now: now)
             let record = result.record
             if state.record == nil || state.record?.date == record.date {
                 state.record = record
@@ -351,10 +212,10 @@ final class TodayViewModel: ObservableObject {
         state.isSavingNight = true
         defer { state.isSavingNight = false }
         do {
-            let record = try await rejectNight.execute(userId: user.id,
-                                                       settings: settings,
-                                                       dayKey: targetDayKey,
-                                                       now: now)
+            let record = try await useCases.rejectNight.execute(userId: user.id,
+                                                                settings: settings,
+                                                                dayKey: targetDayKey,
+                                                                now: now)
             if state.record == nil || state.record?.date == record.date {
                 state.record = record
             }
@@ -421,7 +282,7 @@ final class TodayViewModel: ObservableObject {
         let userId = currentUserId ?? ""
         let keys = currentWeekDayKeys(now: now)
         guard keys.count == 7 else {
-            return Array(repeating: defaultRecord(for: userId, date: todayKey(for: now)), count: 7)
+            return Array(repeating: DayRecord.defaultRecord(for: userId, date: todayKey(for: now)), count: 7)
         }
 
         var map = Dictionary(uniqueKeysWithValues: lightChain.map { ($0.date, $0) })
@@ -430,7 +291,7 @@ final class TodayViewModel: ObservableObject {
         }
 
         return keys.map { key in
-            map[key] ?? defaultRecord(for: userId, date: key)
+            map[key] ?? DayRecord.defaultRecord(for: userId, date: key)
         }
     }
 
@@ -473,7 +334,7 @@ final class TodayViewModel: ObservableObject {
         if let match = monthRecords.first(where: { $0.date == dayKey }) {
             return match
         }
-        return defaultRecord(for: userId, date: dayKey)
+        return DayRecord.defaultRecord(for: userId, date: dayKey)
     }
 
     /// 按夜窗重新归一化当月记录，必要时填充当天默认记录，避免 UI 重复实现。
@@ -499,7 +360,7 @@ final class TodayViewModel: ObservableObject {
             }
         }
         if map[todayKey] == nil {
-            map[todayKey] = defaultRecord(for: currentUserId ?? "", date: todayKey)
+            map[todayKey] = DayRecord.defaultRecord(for: currentUserId ?? "", date: todayKey)
         }
         return map.values.sorted { $0.date < $1.date }
     }
@@ -518,33 +379,24 @@ final class TodayViewModel: ObservableObject {
 
     private func refreshLightChain() async throws {
         guard let user = user, let settings = state.settings else { return }
-        let records = try await loadLightChain.execute(userId: user.id, days: 14, settings: settings)
+        let records = try await statsLoader.loadLightChain(userId: user.id, settings: settings)
         lightChain = records
     }
 
     private func refreshStreak() async throws {
         guard let user = user, let settings = state.settings else { return }
-        state.streak = try await getStreak.execute(userId: user.id, settings: settings)
+        state.streak = try await statsLoader.loadStreak(userId: user.id, settings: settings)
     }
 
     private func scheduleNotifications() async {
         guard let settings = state.settings else { return }
         let effectiveDayKey = todayKey()
         let nextKey = nextDayKey(from: effectiveDayKey, settings: settings)
-        let nightNeeded = shouldScheduleNight(for: state.record)
-        let context = makeNotificationContext(settings: settings)
-        let nextContext = NotificationContext(
-            nickname: user?.nickname,
-            hasCommitmentToday: false,
-            commitmentPreview: nil,
-            showCommitmentInNotification: settings.showCommitmentInNotification
-        )
-        await notificationScheduler.reschedule(settings: settings,
-                                               nightReminderNeeded: nightNeeded,
-                                               dayKey: effectiveDayKey,
-                                               nextDayKey: nextKey,
-                                               context: context,
-                                               nextDayContext: nextContext)
+        await notificationCoordinator.scheduleNotifications(settings: settings,
+                                                            record: state.record,
+                                                            user: user,
+                                                            effectiveDayKey: effectiveDayKey,
+                                                            nextDayKeyOverride: nextKey)
         lastDayKey = effectiveDayKey
     }
 
@@ -556,34 +408,30 @@ final class TodayViewModel: ObservableObject {
 
     private func forceRescheduleTonight(settings: Settings, timeline: NightTimeline, now: Date) async {
         let dayKey = timeline.dayKey
-        let nightNeeded = shouldScheduleNight(for: state.record)
-        let context = makeNotificationContext(settings: settings)
-        await notificationScheduler.reschedule(settings: settings,
-                                               nightReminderNeeded: nightNeeded,
-                                               dayKey: dayKey,
-                                               nextDayKey: nil,
-                                               context: context,
-                                               now: now)
+        await notificationCoordinator.forceRescheduleTonight(settings: settings,
+                                                             record: state.record,
+                                                             user: user,
+                                                             timeline: timeline,
+                                                             now: now)
         lastDayKey = dayKey
     }
 
     // MARK: - Dev helpers
     func triggerDayReminderNow() async {
-        let context = state.settings.map { makeNotificationContext(settings: $0) } ?? .empty
-        await notificationScheduler.triggerDayReminderNow(context: context)
+        await notificationCoordinator.triggerDayReminderNow(settings: state.settings,
+                                                            record: state.record,
+                                                            user: user)
     }
 
     func triggerNightReminderNow() async {
-        let context = state.settings.map { makeNotificationContext(settings: $0) } ?? .empty
-        await notificationScheduler.triggerNightReminderNow(context: context)
+        await notificationCoordinator.triggerNightReminderNow(settings: state.settings,
+                                                             record: state.record,
+                                                             user: user)
     }
 
     func handleNightToggle(enabled: Bool, now: Date = Date()) async {
         guard let settings = state.settings, !enabled else { return }
-        let timeline = dateHelper.nightTimeline(settings: settings, now: now)
-        if timeline.phase == .inWindow {
-            notificationScheduler.clearNightReminders()
-        }
+        notificationCoordinator.handleNightToggle(settings: settings, enabled: enabled, now: now)
     }
 
     func saveSettings(dayReminder: Date,
@@ -607,7 +455,7 @@ final class TodayViewModel: ObservableObject {
         let nightWindowChanged = nightWindowChanged(from: previousSettings, to: settings)
         let timeline = dateHelper.nightTimeline(settings: settings, now: now)
         do {
-            try await updateSettingsUseCase.execute(settings)
+            try await useCases.updateSettings.execute(settings)
             state.settings = settings
             settingsSyncState = .synced
             if nightWindowChanged && (timeline.phase == .early || timeline.phase == .inWindow) {
@@ -637,23 +485,15 @@ final class TodayViewModel: ObservableObject {
     }
 
     func navigateToNightPage(dayKey: String? = nil) {
-        var info: [String: String] = ["deeplink": "night"]
-        if let dayKey {
-            info["dayKey"] = dayKey
-        }
-        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: info)
+        navigationRouter.navigateToNightPage(dayKey: dayKey)
     }
 
     func navigateToDayPage(dayKey: String? = nil) {
-        var info: [String: String] = ["deeplink": "day"]
-        if let dayKey {
-            info["dayKey"] = dayKey
-        }
-        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: info)
+        navigationRouter.navigateToDayPage(dayKey: dayKey)
     }
 
     func navigateToSettingsPage() {
-        NotificationCenter.default.post(name: .daylightNavigate, object: nil, userInfo: ["deeplink": "settings"])
+        navigationRouter.navigateToSettingsPage()
     }
 
     func setLanguage(_ code: String?) {
@@ -663,7 +503,8 @@ final class TodayViewModel: ObservableObject {
 
     func updateTimeDependencies(dateHelper: DaylightDateHelper, notificationScheduler: NotificationScheduler) {
         self.dateHelper = dateHelper
-        self.notificationScheduler = notificationScheduler
+        timeObserver.update(dateHelper: dateHelper)
+        notificationCoordinator.update(dateHelper: dateHelper, notificationScheduler: notificationScheduler)
     }
 
     func updateNickname(_ newName: String) async {
@@ -678,32 +519,6 @@ final class TodayViewModel: ObservableObject {
         }
     }
 
-    private func makeNotificationContext(settings: Settings) -> NotificationContext {
-        let nickname = user?.nickname
-        let hasCommitment = state.record?.dayLightStatus == .on
-        let preview = commitmentPreview(for: state.record?.commitmentText)
-        return NotificationContext(
-            nickname: nickname,
-            hasCommitmentToday: hasCommitment,
-            commitmentPreview: preview,
-            showCommitmentInNotification: settings.showCommitmentInNotification
-        )
-    }
-
-    private func commitmentPreview(for text: String?) -> String? {
-        guard let raw = text?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
-            return nil
-        }
-        if raw.count <= 20 { return raw }
-        let prefix = raw.prefix(18)
-        return "\(prefix)…"
-    }
-
-    private func shouldScheduleNight(for record: DayRecord?) -> Bool {
-        guard let record = record else { return false }
-        return record.dayLightStatus == .on && record.nightLightStatus == .off
-    }
-
     private func shouldBlockForTimeChange() -> Bool {
         guard hasPendingSignificantTimeChange else { return false }
         state.errorMessage = timeChangeErrorMessage
@@ -715,10 +530,10 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func ensureNotificationsSynced(for dayKey: String) async {
-        guard state.settings != nil else { return }
-        if notificationScheduler.lastScheduledDayKey() != dayKey {
-            await scheduleNotifications()
-        }
+        await notificationCoordinator.ensureNotificationsSynced(settings: state.settings,
+                                                                record: state.record,
+                                                                user: user,
+                                                                dayKey: dayKey)
     }
 
     func applySyncSnapshot(_ snapshot: SyncReplayer.Snapshot) {
@@ -739,7 +554,7 @@ final class TodayViewModel: ObservableObject {
     func loadMonth(_ month: Date) async {
         guard let user = user, let settings = state.settings else { return }
         do {
-            let records = try await loadMonthUseCase.execute(userId: user.id, month: month, settings: settings)
+            let records = try await statsLoader.loadMonth(userId: user.id, month: month, settings: settings)
             monthRecords = records
         } catch {
             state.errorMessage = error.localizedDescription
@@ -748,33 +563,17 @@ final class TodayViewModel: ObservableObject {
 
     private func checkNotificationPermissionAfterCommit() async {
         // 未授权时静默请求一次权限，不在界面弹窗提示
-        let enabled = await notificationScheduler.notificationsEnabled()
-        if enabled { return }
-        let granted = await notificationScheduler.requestAuthorization()
-        _ = granted
+        await notificationCoordinator.checkNotificationPermissionAfterCommit()
     }
 
     func handleNotificationRecovery(now: Date = Date(), previousStatus: UNAuthorizationStatus? = nil) async {
-        guard let settings = state.settings else { return }
-        let cachedStatus = previousStatus ?? notificationScheduler.lastCachedAuthorizationStatus()
-        let currentStatus = await notificationScheduler.authorizationStatusWithCache()
-        guard let cachedStatus,
-              !notificationScheduler.isAuthorized(cachedStatus),
-              notificationScheduler.isAuthorized(currentStatus) else {
-            return
-        }
-
-        await scheduleNotifications()
-
-        guard let record = state.record else { return }
-        let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: record.date)
-        let dayReminderTime = dateHelper.date(from: settings.dayReminderTime, reference: now)
-        if record.dayLightStatus == .off && now >= dayReminderTime && now < timeline.nightStart {
-            recoveryAction = .day
-            return
-        }
-        if let context = nightCTAContext(now: now) {
-            recoveryAction = .night(dayKey: context.dayKey)
+        let action = await notificationCoordinator.handleNotificationRecovery(settings: state.settings,
+                                                                              record: state.record,
+                                                                              user: user,
+                                                                              now: now,
+                                                                              previousStatus: previousStatus)
+        if let action {
+            recoveryAction = action
         }
     }
 
@@ -791,27 +590,18 @@ final class TodayViewModel: ObservableObject {
         }
         let effectiveDayKey = todayKey()
         let nextKey = nextDayKey(from: effectiveDayKey, settings: settings)
-        let nightNeeded = shouldScheduleNight(for: state.record)
-        let context = makeNotificationContext(settings: settings)
-        let nextContext = NotificationContext(
-            nickname: user?.nickname,
-            hasCommitmentToday: false,
-            commitmentPreview: nil,
-            showCommitmentInNotification: settings.showCommitmentInNotification
-        )
-        await notificationScheduler.handleTimeChange(event: event,
-                                                     settings: settings,
-                                                     nightReminderNeeded: nightNeeded,
-                                                     dayKey: effectiveDayKey,
-                                                     nextDayKey: nextKey,
-                                                     context: context,
-                                                     nextDayContext: nextContext)
+        await notificationCoordinator.handleTimeChange(event: event,
+                                                       settings: settings,
+                                                       record: state.record,
+                                                       user: user,
+                                                       effectiveDayKey: effectiveDayKey,
+                                                       nextDayKeyOverride: nextKey)
         await scheduleDayChangeCheck()
     }
 
     @discardableResult
     func refreshIfNeeded(trigger: RefreshTrigger, includeMonth: Bool = false) async -> Bool {
-        let cachedStatus = notificationScheduler.lastCachedAuthorizationStatus()
+        let cachedStatus = notificationCoordinator.lastCachedAuthorizationStatus()
         if state.isLoading {
             await scheduleDayChangeCheck()
             return false
@@ -833,15 +623,9 @@ final class TodayViewModel: ObservableObject {
     }
 
     func scheduleDayChangeCheck() async {
-        dayChangeTask?.cancel()
+        timeObserver.cancel()
         guard let settings = state.settings else { return }
-        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
-        let fireAt = dateHelper.nextLocalDayBoundary(after: Date(), nightWindow: window)
-        let delaySeconds = max(fireAt.timeIntervalSinceNow, 1)
-        let delayNanos = UInt64(delaySeconds * 1_000_000_000)
-        dayChangeTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delayNanos)
-            guard !Task.isCancelled else { return }
+        timeObserver.scheduleDayChangeCheck(settings: settings) { [weak self] in
             await self?.refreshIfNeeded(trigger: .timer, includeMonth: true)
         }
     }

@@ -198,7 +198,7 @@ struct DaylightDateHelper {
         return minutesIntoDay >= startMinutes || minutesIntoDay <= endMinutes
     }
 
-    private func minutes(for time: String) -> Int? {
+    func minutes(from time: String) -> Int? {
         let trimmed = time.trimmingCharacters(in: .whitespacesAndNewlines)
         // 首选 24 小时制，保持存储格式一致
         let parts = trimmed.split(separator: ":")
@@ -242,7 +242,7 @@ struct DaylightDateHelper {
     }
 
     func date(from timeString: String, reference: Date = Date()) -> Date {
-        guard let minutesTotal = minutes(for: timeString) else { return reference }
+        guard let minutesTotal = minutes(from: timeString) else { return reference }
         var calendar = calendar
         calendar.timeZone = timeZone
         var components = calendar.dateComponents(in: timeZone, from: reference)
@@ -253,8 +253,8 @@ struct DaylightDateHelper {
     }
 
     func parsedNightWindow(_ window: NightWindow) -> ParsedNightWindow? {
-        guard let startMinutes = minutes(for: window.start),
-              let endMinutes = minutes(for: window.end),
+        guard let startMinutes = minutes(from: window.start),
+              let endMinutes = minutes(from: window.end),
               startMinutes != endMinutes else {
             return nil
         }
@@ -290,7 +290,7 @@ struct DaylightDateHelper {
                             minutesIntoDay: parsedWindow.endMinutes,
                             dayOffset: nightEndDayOffset)
 
-        let dayReminderMinutes = minutes(for: settings.dayReminderTime) ?? 10 * 60
+        let dayReminderMinutes = minutes(from: settings.dayReminderTime) ?? 10 * 60
         let earlyCandidate = dayReminderMinutes + 6 * 60
         let earlyStartMinutes = max(earlyCandidate, 17 * 60)
         let earlyStart = date(fromDayStart: dayStart, minutesIntoDay: earlyStartMinutes)
@@ -320,7 +320,7 @@ struct DaylightDateHelper {
                              phase: phase)
     }
 
-    private func date(fromDayStart dayStart: Date, minutesIntoDay: Int, dayOffset: Int = 0) -> Date {
+    func date(fromDayStart dayStart: Date, minutesIntoDay: Int, dayOffset: Int = 0) -> Date {
         var cal = calendar
         cal.timeZone = timeZone
 

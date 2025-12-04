@@ -3,16 +3,23 @@ import Foundation
 actor UserLocalDataSource {
     private let storage: FileStorage
     private let keychain: KeychainStore
+    private let migrator: DataMigrating
     private let filename = "user.json"
     private let keyUserId = "daylight_user_id"
 
-    init(storage: FileStorage = FileStorage(), keychain: KeychainStore = KeychainStore()) {
+    init(storage: FileStorage = FileStorage(),
+         keychain: KeychainStore = KeychainStore(),
+         migrator: DataMigrating = NoOpDataMigrator()) {
         self.storage = storage
         self.keychain = keychain
+        self.migrator = migrator
     }
 
     func loadOrCreateUser() throws -> User {
-        if let saved: PersistedList<User> = try storage.read(PersistedList<User>.self, from: filename),
+        if let saved: PersistedList<User> = try storage.readPersistedList(PersistedList<User>.self,
+                                                                          expectedVersion: User.schemaVersion,
+                                                                          from: filename,
+                                                                          migrator: migrator),
            let user = saved.items.first {
             return user
         }
@@ -39,7 +46,7 @@ actor UserLocalDataSource {
     }
 
     func save(user: User) throws {
-        let payload = PersistedList(schemaVersion: 1, items: [user])
+        let payload = PersistedList(schemaVersion: User.schemaVersion, items: [user])
         try storage.write(payload, to: filename)
     }
 }

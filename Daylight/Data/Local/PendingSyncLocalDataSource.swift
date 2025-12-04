@@ -2,15 +2,20 @@ import Foundation
 
 actor PendingSyncLocalDataSource {
     private let storage: FileStorage
+    private let migrator: DataMigrating
     private let filename = "pending_ops.json"
     private let maxItems = 200
 
-    init(storage: FileStorage = FileStorage()) {
+    init(storage: FileStorage = FileStorage(), migrator: DataMigrating = NoOpDataMigrator()) {
         self.storage = storage
+        self.migrator = migrator
     }
 
     func loadAll() throws -> [PendingSyncItem] {
-        let wrapper: PersistedList<PendingSyncItem>? = try storage.read(PersistedList<PendingSyncItem>.self, from: filename)
+        let wrapper: PersistedList<PendingSyncItem>? = try storage.readPersistedList(PersistedList<PendingSyncItem>.self,
+                                                                                    expectedVersion: PendingSyncItem.schemaVersion,
+                                                                                    from: filename,
+                                                                                    migrator: migrator)
         return wrapper?.items ?? []
     }
 
@@ -28,13 +33,6 @@ actor PendingSyncLocalDataSource {
     func remove(id: String) throws {
         var items = try loadAll()
         items.removeAll { $0.id == id }
-        try persist(items)
-    }
-
-    func remove(ids: Set<String>) throws {
-        guard !ids.isEmpty else { return }
-        var items = try loadAll()
-        items.removeAll { ids.contains($0.id) }
         try persist(items)
     }
 
@@ -57,7 +55,7 @@ actor PendingSyncLocalDataSource {
     }
 
     private func persist(_ items: [PendingSyncItem]) throws {
-        let wrapper = PersistedList(schemaVersion: 1, items: items)
+        let wrapper = PersistedList(schemaVersion: PendingSyncItem.schemaVersion, items: items)
         try storage.write(wrapper, to: filename)
     }
 }

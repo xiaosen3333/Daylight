@@ -1,4 +1,8 @@
 /* English localization */
+"app.launch_failed" = "Launch failed";
+"app.loading" = "Loading...";
+"app.retry" = "Retry";
+
 "home.title" = "Don't stay up—turn in early";
 "home.subtitle" = "Write what your daytime self wants to tell tonight's you";
 "home.title.day" = "Day lamp is on";

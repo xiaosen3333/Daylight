@@ -28,17 +28,25 @@ struct NotificationScheduler {
     private let defaults: UserDefaults
     private let calendar: Calendar
     private let timeZone: TimeZone
+    private var dateHelper: DaylightDateHelper
 
-    init(calendar: Calendar = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent, defaults: UserDefaults = .standard) {
+    init(calendar: Calendar = .autoupdatingCurrent,
+         timeZone: TimeZone = .autoupdatingCurrent,
+         defaults: UserDefaults = .standard,
+         dateHelper: DaylightDateHelper? = nil) {
         var cal = calendar
         cal.timeZone = timeZone
-        self.calendar = cal
-        self.timeZone = timeZone
+        self.calendar = dateHelper?.calendar ?? cal
+        self.timeZone = dateHelper?.timeZone ?? timeZone
         self.defaults = defaults
+        self.dateHelper = dateHelper ?? DaylightDateHelper(calendar: cal, timeZone: timeZone)
     }
 
     static func withCurrentEnvironment(defaults: UserDefaults = .standard) -> NotificationScheduler {
-        NotificationScheduler(calendar: .autoupdatingCurrent, timeZone: .autoupdatingCurrent, defaults: defaults)
+        NotificationScheduler(calendar: .autoupdatingCurrent,
+                              timeZone: .autoupdatingCurrent,
+                              defaults: defaults,
+                              dateHelper: DaylightDateHelper.withCurrentEnvironment())
     }
 
     func requestAuthorization() async -> Bool {
@@ -83,19 +91,6 @@ struct NotificationScheduler {
     func notificationsEnabled() async -> Bool {
         let status = await authorizationStatusWithCache()
         return isAuthorized(status)
-    }
-
-    /// 仅在未决状态下请求授权，避免重复弹窗
-    func ensureAuthorization() async -> Bool {
-        let status = await authorizationStatusWithCache()
-        switch status {
-        case .notDetermined:
-            return await requestAuthorization()
-        case .authorized, .provisional, .ephemeral:
-            return true
-        default:
-            return false
-        }
     }
 
     func reschedule(settings: Settings,
@@ -175,21 +170,18 @@ struct NotificationScheduler {
         }
 
         guard nightReminderNeeded, settings.nightReminderEnabled else { return scheduled }
-        guard let startMinutes = minutes(from: settings.nightReminderStart),
-              let endMinutes = minutes(from: settings.nightReminderEnd) else {
-            return scheduled
-        }
+        let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
+        guard let parsedWindow = dateHelper.parsedNightWindow(window) else { return scheduled }
         let intervalMinutes = settings.nightReminderInterval
         guard intervalMinutes > 0 else { return scheduled }
 
-        let times = nightReminderTimes(startMinutes: startMinutes,
-                                       endMinutes: endMinutes,
+        let times = nightReminderTimes(startMinutes: parsedWindow.startMinutes,
+                                       endMinutes: parsedWindow.endMinutes,
                                        intervalMinutes: intervalMinutes)
         for (index, minutes) in times.enumerated() {
             guard let nightRequest = buildNightRequest(minutes: minutes,
                                                        dayDate: dayDate,
-                                                       startMinutes: startMinutes,
-                                                       endMinutes: endMinutes,
+                                                       window: parsedWindow,
                                                        roundIndex: index,
                                                        context: context,
                                                        dayKey: dayKey) else { continue }
@@ -237,15 +229,13 @@ struct NotificationScheduler {
 
     private func buildNightRequest(minutes: Int,
                                    dayDate: Date,
-                                   startMinutes: Int,
-                                   endMinutes: Int,
+                                   window: DaylightDateHelper.ParsedNightWindow,
                                    roundIndex: Int,
                                    context: NotificationContext,
                                    dayKey: String) -> (identifier: String, request: UNNotificationRequest, fireDate: Date)? {
         guard let components = nightDateComponents(for: minutes,
                                                    dayDate: dayDate,
-                                                   startMinutes: startMinutes,
-                                                   endMinutes: endMinutes),
+                                                   window: window),
               let fireDate = calendar.date(from: components) else {
             return nil
         }
@@ -349,8 +339,8 @@ struct NotificationScheduler {
     }
 
     private func dateComponents(for day: Date, time: String) -> DateComponents? {
-        guard let minutes = minutes(from: time) else { return nil }
-        var comps = calendar.dateComponents(in: timeZone, from: day)
+        guard let minutes = dateHelper.minutes(from: time) else { return nil }
+        var comps = dateHelper.calendar.dateComponents(in: dateHelper.timeZone, from: day)
         comps.hour = minutes / 60
         comps.minute = minutes % 60
         comps.second = 0
@@ -359,44 +349,10 @@ struct NotificationScheduler {
 
     private func nightDateComponents(for minutes: Int,
                                      dayDate: Date,
-                                     startMinutes: Int,
-                                     endMinutes: Int) -> DateComponents? {
-        let crossesDay = startMinutes > endMinutes
-        let targetDay: Date
-        if crossesDay && minutes <= endMinutes {
-            guard let next = calendar.date(byAdding: .day, value: 1, to: dayDate) else { return nil }
-            targetDay = next
-        } else {
-            targetDay = dayDate
-        }
-        var comps = calendar.dateComponents(in: timeZone, from: targetDay)
-        comps.hour = minutes / 60
-        comps.minute = minutes % 60
-        comps.second = 0
-        return comps
-    }
-
-    private func minutes(from time: String) -> Int? {
-        let trimmed = time.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parts = trimmed.split(separator: ":")
-        if parts.count == 2,
-           let hour = Int(parts[0]),
-           let minute = Int(parts[1]),
-           (0..<24).contains(hour),
-           (0..<60).contains(minute) {
-            return hour * 60 + minute
-        }
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "h:mm a"
-        guard let date = formatter.date(from: trimmed) else {
-            return nil
-        }
-        let comps = calendar.dateComponents(in: timeZone, from: date)
-        guard let hour = comps.hour, let minute = comps.minute else { return nil }
-        return hour * 60 + minute
+                                     window: DaylightDateHelper.ParsedNightWindow) -> DateComponents? {
+        let dayOffset = window.crossesMidnight && minutes <= window.endMinutes ? 1 : 0
+        let targetDay = dateHelper.date(fromDayStart: dayDate, minutesIntoDay: minutes, dayOffset: dayOffset)
+        return dateHelper.calendar.dateComponents(in: dateHelper.timeZone, from: targetDay)
     }
 
     private func dayReminderIdentifier(for dayKey: String) -> String {
@@ -407,9 +363,9 @@ struct NotificationScheduler {
         "\(nightReminderPrefix)\(dayKey)_\(roundIndex)"
     }
 
-    private func nightReminderTimes(startMinutes: Int,
-                                    endMinutes: Int,
-                                    intervalMinutes: Int) -> [Int] {
+    func nightReminderTimes(startMinutes: Int,
+                            endMinutes: Int,
+                            intervalMinutes: Int) -> [Int] {
         guard intervalMinutes > 0 else { return [] }
         let window: Int
         if startMinutes == endMinutes {
@@ -431,6 +387,9 @@ struct NotificationScheduler {
             if !times.contains(endNormalized) {
                 times.append(endNormalized)
             }
+        }
+        if startMinutes > endMinutes && endMinutes > 0 {
+            times.removeAll { $0 == 0 }
         }
         return times
     }

@@ -6,6 +6,8 @@ enum LightStatus: String, Codable {
 }
 
 struct User: Codable, Identifiable, Equatable {
+    static let schemaVersion: Int = 1
+
     let id: String
     let deviceId: String
     let createdAt: Date
@@ -16,66 +18,6 @@ struct User: Codable, Identifiable, Equatable {
     var locale: String?
     var timezone: String?
     var nickname: String?
-}
-
-struct Subscription: Codable, Equatable {
-    enum Plan: String, Codable {
-        case free
-        case proMonthly = "pro_monthly"
-        case proYearly = "pro_yearly"
-    }
-
-    enum Status: String, Codable {
-        case active
-        case expired
-        case cancelled
-    }
-
-    let userId: String
-    let plan: Plan
-    let status: Status
-    let startedAt: Date
-    var expiredAt: Date?
-}
-
-enum EntitlementKey: String, Codable {
-    case maxHistoryDays
-    case advancedThemes
-    case weeklyReport
-}
-
-struct Entitlement: Codable, Equatable {
-    let key: EntitlementKey
-    let value: EntitlementValue
-}
-
-enum EntitlementValue: Codable, Equatable {
-    case number(Double)
-    case boolean(Bool)
-    case string(String)
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let num = try? container.decode(Double.self) {
-            self = .number(num)
-        } else if let bool = try? container.decode(Bool.self) {
-            self = .boolean(bool)
-        } else {
-            self = .string((try? container.decode(String.self)) ?? "")
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .number(let number):
-            try container.encode(number)
-        case .boolean(let bool):
-            try container.encode(bool)
-        case .string(let string):
-            try container.encode(string)
-        }
-    }
 }
 
 struct DayRecord: Codable, Identifiable, Equatable {

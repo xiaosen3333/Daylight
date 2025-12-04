@@ -2,15 +2,20 @@ import Foundation
 
 actor SettingsLocalDataSource {
     private let storage: FileStorage
+    private let migrator: DataMigrating
     private let filename = "settings.json"
     private let dateHelper = DaylightDateHelper()
 
-    init(storage: FileStorage = FileStorage()) {
+    init(storage: FileStorage = FileStorage(), migrator: DataMigrating = NoOpDataMigrator()) {
         self.storage = storage
+        self.migrator = migrator
     }
 
     func load(userId: String) throws -> Settings {
-        if let wrapper: PersistedList<Settings> = try storage.read(PersistedList<Settings>.self, from: filename),
+        if let wrapper: PersistedList<Settings> = try storage.readPersistedList(PersistedList<Settings>.self,
+                                                                               expectedVersion: Settings.schemaVersion,
+                                                                               from: filename,
+                                                                               migrator: migrator),
            let setting = wrapper.items.first(where: { $0.userId == userId }) {
             let normalized = normalize(setting)
             if normalized != setting {
@@ -46,7 +51,10 @@ actor SettingsLocalDataSource {
 
     func save(_ settings: Settings) throws {
         var items: [Settings] = []
-        if let existing: PersistedList<Settings> = try storage.read(PersistedList<Settings>.self, from: filename) {
+        if let existing: PersistedList<Settings> = try storage.readPersistedList(PersistedList<Settings>.self,
+                                                                                expectedVersion: Settings.schemaVersion,
+                                                                                from: filename,
+                                                                                migrator: migrator) {
             items = existing.items
         }
 

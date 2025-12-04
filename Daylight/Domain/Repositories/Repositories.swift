@@ -17,13 +17,3 @@ protocol SettingsRepository {
     func loadSettings() async throws -> Settings
     func updateSettings(_ settings: Settings) async throws
 }
-
-protocol SyncQueueRepository {
-    func enqueuePendingRecord(_ record: DayRecord) async
-    func pendingRecords() async -> [DayRecord]
-    func removePending(for id: String) async
-}
-
-protocol FeatureGate {
-    func isEnabled(_ feature: EntitlementKey) -> Bool
-}

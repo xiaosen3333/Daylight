@@ -2,14 +2,19 @@ import Foundation
 
 actor DayRecordLocalDataSource {
     private let storage: FileStorage
+    private let migrator: DataMigrating
     private let filename = "day_records.json"
 
-    init(storage: FileStorage = FileStorage()) {
+    init(storage: FileStorage = FileStorage(), migrator: DataMigrating = NoOpDataMigrator()) {
         self.storage = storage
+        self.migrator = migrator
     }
 
     private func loadAll() throws -> [DayRecord] {
-        let wrapper: PersistedList<DayRecord>? = try storage.read(PersistedList<DayRecord>.self, from: filename)
+        let wrapper: PersistedList<DayRecord>? = try storage.readPersistedList(PersistedList<DayRecord>.self,
+                                                                              expectedVersion: DayRecord.schemaVersion,
+                                                                              from: filename,
+                                                                              migrator: migrator)
         return wrapper?.items ?? []
     }
 

@@ -16,7 +16,7 @@ struct LightChainVisualizationGallery: View {
     var body: some View {
         let recordToShow = selectedRecord
         ?? records.first(where: { $0.date == todayKey })
-        ?? defaultRecord(for: userId, date: todayKey)
+        ?? DayRecord.defaultRecord(for: userId, date: todayKey)
         LazyVStack(spacing: 14) {
             LightChainPrimaryCard(records: records, streak: streak)
             LightChainStreakCalendarCard(
