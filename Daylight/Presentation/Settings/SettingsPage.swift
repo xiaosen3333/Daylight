@@ -15,8 +15,6 @@ struct SettingsPage: View {
     @State private var nightEnabled: Bool = true
     @State private var showCommitmentInNotification: Bool = true
     @State private var nickname: String = ""
-    @State private var showNightDisableAlert = false
-    @State private var nightDisableAlertText: String?
     @State private var didLoad = false
     @State private var didSyncInitial = false
     @State private var lastCommittedNickname: String = ""
@@ -73,10 +71,6 @@ struct SettingsPage: View {
             guard didLoad, oldValue, !newValue else { return }
             let now = Date()
             Task { await viewModel.handleNightToggle(enabled: newValue, now: now) }
-            if isInNightWindow(now: now) {
-                nightDisableAlertText = NSLocalizedString("settings.night.disable.confirm", comment: "")
-                showNightDisableAlert = true
-            }
         }
         .onChange(of: settingsForm) { _, newValue in
             guard nightWindowValidation(for: newValue).isValid else { return }
@@ -91,18 +85,6 @@ struct SettingsPage: View {
             guard didLoad else { return }
             nickname = name
             lastCommittedNickname = name
-        }
-        .alert(isPresented: Binding(get: { showNightDisableAlert },
-                                    set: { newValue in
-            showNightDisableAlert = newValue
-            if !newValue {
-                nightDisableAlertText = nil
-            }
-        })) {
-            Alert(title: Text(nightDisableAlertText ?? ""),
-                  dismissButton: .default(Text(NSLocalizedString("common.confirm", comment: ""))) {
-                nightDisableAlertText = nil
-            })
         }
     }
 
@@ -405,11 +387,6 @@ struct SettingsPage: View {
         Task { await viewModel.updateNickname(currentNickname) }
     }
 
-    private func isInNightWindow(now: Date = Date()) -> Bool {
-        guard let settings = viewModel.state.settings else { return false }
-        let timeline = viewModel.dateHelper.nightTimeline(settings: settings, now: now)
-        return timeline.phase == .inWindow
-    }
 }
 
 private struct SettingsForm: Equatable {
