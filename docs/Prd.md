@@ -1,5 +1,59 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.15）
+- 目的：统一日历单元模型/色板与日期展示，复用共享组件避免重复定义；版本号 1.4.15。
+- 范围：Presentation/Components/Calendar 新增 DayVisualStatus/dayStatus(for:)/DayVisualStyle(Palette)/DayCell；TodayView、LightChainPage、LightChainVisualizationComponents 改用共享 DayCell/Palette，并使用 DaylightDateHelper.formattedDay 输出日期；月视图补位/选中/打灯逻辑保持。
+- 影响面：main/streak palette 复刻原色值与阴影（main overlay12、partial glow 6/complete 12、off 文案保持金色 65%；streak overlay15、partial 背景 35%+glow 6、complete glow 10、off 文案 65%）；业务接口、UseCase 不变。
+- 验收要点：跨月补 nil、firstWeekday 顺序不变，nil 记为 off；日夜全亮 complete、日亮夜灭 partial；LightChainStreakCalendar 选中描边 2pt+现有 glow 维持；DayRecordStatusCard/详情日期经 formattedDay 尊重 locale+timeZone；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（共享 DayCell 渲染）
+```
+[Shared DayCell 渲染]
+  dayStatus -> palette -> (bg,text,glow,radius)
+  [off]     ○ 12   overlay bg, muted gold text, no glow
+  [partial] ● 12   gold 40%, white text, small glow
+  [complete]● 12   solid gold, on-glow text, strong glow
+  选中态（需要时）: 外圈描边 keep 2pt
+```
+
+### ASCII 原型（LightChainPage）
+```
++------------------------------------------------+
+| Sun Card      | Calendar Card (DayCell palette: main) |
+| Detail Card   | Streak Card                     |
+| 下方 DayRecordStatusCard 使用 formattedDay      |
++------------------------------------------------+
+```
+
+### ASCII 原型（TodayView stats 折叠区）
+```
+LightChainVisualizationGallery
+  - Primary Card
+  - Streak Calendar Card (DayCell palette: streak)
+  - DayRecordStatusCard(formattedDay)
+```
+
+### ASCII 原型（LightChainVisualizationComponents.LightChainStreakCalendarCard）
+```
+<月切换>  weekdayHeader
+[DayCell grid 7xN，空位 nil]
+选中态描边 + glow 维持原样（palette: streak）
+```
+
+### ASCII 原型（DayRecordStatusCard）
+```
+日期 (formattedDay)
+状态标题/描述
+承诺/睡眠/拒绝文案（逻辑不变）
+```
+
+### 技术架构与要点更新
+- Presentation/Components/Calendar 新增 DayVisualStatus + DayVisualStylePalette(main/streak) 与 DayCell(Identifiable & Hashable)；dayStatus(for:) 统一判定 nil/off/partial/complete。
+- DaylightDateHelper 增加 formattedDay(dateString:locale:dateStyle:timeZone:) 以 dayFormatter 解析 yyyy-MM-dd，locale/timeZone 透传，失败回原串。
+- LightChainStreakCalendarCard/TodayView/LightChainPage 日历渲染改用共享 DayCell + palette（main/streak），选中态 stroke 2pt + glow 数值保持，monthGrid 补位/firstWeekday 逻辑不变。
+- DayRecordStatusCard 与详情卡日期展示切换至 formattedDay，睡眠时间仍用 dateHelper.displayTimeString，默认占位/打灯判定/选中态保持原流程。
+- 版本号 MARKETING_VERSION 更新至 1.4.15，未引入新依赖，DesignSystem 组件继续沿用现有颜色/尺寸。
+
 ## 新版本更新（1.4.14）
 - 目的：首页灯带按本地周序列（尊重 locale 首日、时区与夜窗归一化）固定 7 盏，今天落在对应位置；版本号 1.4.14。
 - 范围：TodayViewModel 新增 currentWeekDayKeys/weekLightChain 基于 todayKey（夜窗）+ calendar.firstWeekday 生成 7 个 dayKey，lightChain 14 天与 state.record 组 Map，缺失用 defaultRecord 填充；TodayView.lightChainBar 直接渲染 weekLightChain（无 suffix/padding），点击展开统计逻辑保持；LoadLightChain 拉取周期不变。

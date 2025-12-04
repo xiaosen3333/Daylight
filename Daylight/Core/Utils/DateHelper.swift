@@ -136,6 +136,22 @@ struct DaylightDateHelper {
         return formatter
     }
 
+    func formattedDay(_ dateString: String,
+                      locale: Locale,
+                      dateStyle: DateFormatter.Style = .medium,
+                      timeZone: TimeZone? = nil) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = locale
+        formatter.timeZone = timeZone ?? self.timeZone
+        formatter.dateStyle = dateStyle
+        formatter.timeStyle = .none
+        if let date = dayFormatter.date(from: dateString) {
+            return formatter.string(from: date)
+        }
+        return dateString
+    }
+
     var shortTimeFormatter: DateFormatter {
         storageTimeFormatter
     }

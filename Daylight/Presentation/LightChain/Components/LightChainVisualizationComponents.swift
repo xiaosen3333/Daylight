@@ -175,6 +175,10 @@ struct LightChainStreakCalendarCard: View {
         return cal
     }
 
+    private var dateHelper: DaylightDateHelper {
+        DaylightDateHelper(calendar: calendar, timeZone: calendar.timeZone)
+    }
+
     private var weekdayHeader: some View {
         let symbols = weekdaySymbols
         return HStack(spacing: 8) {
@@ -202,7 +206,7 @@ struct LightChainStreakCalendarCard: View {
     }
 
     private func dayCell(_ cell: DayCell) -> some View {
-        let style = dayStyle(for: cell.record)
+        let style = dayStatus(for: cell.record).style(using: DayVisualStylePalette.streakCalendar)
         let isSelected = selectedId == cell.id
         return Button {
             let record = cell.record ?? placeholderRecord(for: cell)
@@ -226,21 +230,6 @@ struct LightChainStreakCalendarCard: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-    }
-
-    private func dayStyle(for record: DayRecord?) -> (background: Color, text: Color, glow: Color, glowRadius: CGFloat) {
-        let offBackground = DaylightColors.bgOverlay15
-        let offText = DaylightColors.glowGold(opacity: 0.65)
-        guard let record = record else {
-            return (offBackground, offText, Color.clear, 0)
-        }
-        if record.dayLightStatus == .on && record.nightLightStatus == .on {
-            return (DaylightColors.glowGold, DaylightColors.textOnGlow, DaylightColors.glowGold(opacity: 0.45), 10)
-        }
-        if record.dayLightStatus == .on {
-            return (DaylightColors.glowGold(opacity: 0.35), Color.white.opacity(0.92), DaylightColors.glowGold(opacity: 0.2), 6)
-        }
-        return (offBackground, offText, Color.clear, 0)
     }
 
     private func placeholderRecord(for cell: DayCell) -> DayRecord {
@@ -267,13 +256,13 @@ struct LightChainStreakCalendarCard: View {
         var cells: [DayCell?] = Array(repeating: nil, count: firstWeekday - 1)
 
         let recordMap = Dictionary(uniqueKeysWithValues: records.map { ($0.date, $0) })
-        let formatter = dayFormatter
+        let formatter = dateHelper.dayFormatter
 
         for day in range {
             if let date = calendar.date(byAdding: .day, value: day - 1, to: startDate) {
                 let key = formatter.string(from: date)
                 let rec = recordMap[key]
-                cells.append(DayCell(date: date, record: rec, calendar: calendar))
+                cells.append(DayCell(date: date, record: rec, calendar: calendar, formatter: formatter))
             }
         }
 
@@ -328,39 +317,13 @@ struct LightChainStreakCalendarCard: View {
     }
 
     private func date(from string: String) -> Date? {
-        return dayFormatter.date(from: string)
+        return dateHelper.dayFormatter.date(from: string)
     }
 
     private func changeMonth(by offset: Int) {
         if let newMonth = calendar.date(byAdding: .month, value: offset, to: month) {
             month = newMonth
             onMonthChange(newMonth)
-        }
-    }
-
-    private var dayFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = calendar.timeZone
-        return formatter
-    }
-
-    private struct DayCell {
-        let id: String
-        let date: Date
-        let record: DayRecord?
-        let dayString: String
-
-        init(date: Date, record: DayRecord?, calendar: Calendar) {
-            self.date = date
-            self.record = record
-            let comp = calendar.dateComponents([.day], from: date)
-            self.dayString = "\(comp.day ?? 0)"
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            self.id = formatter.string(from: date)
         }
     }
 }
@@ -372,13 +335,17 @@ struct DayRecordStatusCard: View {
     let timeZone: TimeZone
     let todayKey: String
 
+    private var dateHelper: DaylightDateHelper {
+        DaylightDateHelper(calendar: Calendar.current, timeZone: timeZone)
+    }
+
     private enum Status {
         case off, dayOnly, both
     }
 
     private var isFuture: Bool {
-        guard let date = dateFormatter().date(from: record.date),
-              let today = dateFormatter().date(from: todayKey) else { return false }
+        guard let date = dateHelper.dayFormatter.date(from: record.date),
+              let today = dateHelper.dayFormatter.date(from: todayKey) else { return false }
         return date > today
     }
 
@@ -495,8 +462,7 @@ struct DayRecordStatusCard: View {
 
     private func sleepLine() -> String? {
         guard record.nightLightStatus == .on, let sleep = record.sleepConfirmedAt else { return nil }
-        let helper = DaylightDateHelper(calendar: Calendar.current, timeZone: timeZone)
-        let time = helper.displayTimeString(from: sleep)
+        let time = dateHelper.displayTimeString(from: sleep)
         return String(format: NSLocalizedString("record.card.sleep", comment: ""), time)
     }
 
@@ -506,21 +472,6 @@ struct DayRecordStatusCard: View {
     }
 
     private func formattedDate(_ dateString: String) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = timeZone
-        formatter.dateStyle = .medium
-        if let date = dateFormatter().date(from: dateString) {
-            return formatter.string(from: date)
-        }
-        return dateString
-    }
-
-    private func dateFormatter() -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = timeZone
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
+        dateHelper.formattedDay(dateString, locale: locale)
     }
 }

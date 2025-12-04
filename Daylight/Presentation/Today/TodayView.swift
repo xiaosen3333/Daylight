@@ -237,20 +237,20 @@ struct TodayView: View {
     }
 
     private func dayCell(_ day: DayCell) -> some View {
-        let status = dayStatus(for: day.record)
+        let style = dayStatus(for: day.record).style(using: DayVisualStylePalette.mainCalendar)
         return Button {
             selectedRecord = day.record
         } label: {
             VStack {
                 Text(day.dayString)
-                    .daylight(.caption1, color: status.textColor)
+                    .daylight(.caption1, color: style.text)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(
                         Circle()
-                            .fill(status.background)
+                            .fill(style.background)
                             .frame(width: 36, height: 36)
-                            .shadow(color: status.glow, radius: status.glowRadius, x: 0, y: 0)
+                            .shadow(color: style.glow, radius: style.glowRadius, x: 0, y: 0)
                     )
             }
             .frame(maxWidth: .infinity)
@@ -318,14 +318,7 @@ struct TodayView: View {
     }
 
     private func formattedDate(_ record: DayRecord) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = viewModel.locale
-        formatter.timeZone = viewModel.dateHelper.timeZone
-        formatter.dateStyle = .medium
-        if let date = viewModel.dateHelper.dayFormatter.date(from: record.date) {
-            return formatter.string(from: date)
-        }
-        return record.date
+        viewModel.dateHelper.formattedDay(record.date, locale: viewModel.locale)
     }
 
     private enum HomeLampStatus {
@@ -451,80 +444,6 @@ struct TodayView: View {
         return weeks
     }
 
-    private func dayStatus(for record: DayRecord) -> DayVisualStatus {
-        if record.dayLightStatus == .on && record.nightLightStatus == .on {
-            return .complete
-        } else if record.dayLightStatus == .on && record.nightLightStatus == .off {
-            return .partial
-        } else {
-            return .off
-        }
-    }
-
-private enum DayVisualStatus {
-        case complete, partial, off
-
-        var background: Color {
-            switch self {
-            case .complete:
-                return DaylightColors.glowGold
-            case .partial:
-                return DaylightColors.glowGold(opacity: 0.4)
-            case .off:
-                return DaylightColors.bgOverlay12
-            }
-        }
-
-        var textColor: Color {
-            switch self {
-            case .complete:
-                return DaylightColors.textOnGlow
-            case .partial:
-                return Color.white.opacity(0.95)
-            case .off:
-                return Color.white.opacity(DaylightTextOpacity.muted)
-            }
-        }
-
-        var glow: Color {
-            switch self {
-            case .complete:
-                return DaylightColors.glowGold(opacity: 0.6)
-            case .partial:
-                return DaylightColors.glowGold(opacity: 0.3)
-            case .off:
-                return Color.clear
-            }
-        }
-
-        var glowRadius: CGFloat {
-            switch self {
-            case .complete:
-                return 12
-            case .partial:
-                return 6
-            case .off:
-                return 0
-            }
-        }
-    }
-}
-
-private struct DayCell {
-    let id: String
-    let date: Date
-    let record: DayRecord
-    private let dayLabel: String
-
-    init(date: Date, record: DayRecord, calendar: Calendar, formatter: DateFormatter) {
-        self.date = date
-        self.record = record
-        self.id = formatter.string(from: date)
-        let comp = calendar.dateComponents([.day], from: date)
-        self.dayLabel = "\(comp.day ?? 0)"
-    }
-
-    var dayString: String { dayLabel }
 }
 
 // MARK: - Day Commitment Page 对齐 daycommit.png
