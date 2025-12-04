@@ -251,11 +251,20 @@ final class GetStreakUseCase {
         return StreakResult(current: current, longest: longest)
     }
 
+    private func isComplete(_ record: DayRecord?) -> Bool {
+        guard let record else { return false }
+        return record.dayLightStatus == .on && record.nightLightStatus == .on
+    }
+
     private func computeCurrent(dayKeys: [String], recordMap: [String: DayRecord]) -> Int {
+        guard !dayKeys.isEmpty else { return 0 }
+
+        let startIndex = isComplete(recordMap[dayKeys[0]]) ? 0 : 1
+        guard startIndex < dayKeys.count else { return 0 }
+
         var streak = 0
-        for dayKey in dayKeys {
-            guard let record = recordMap[dayKey] else { break }
-            guard record.dayLightStatus == .on, record.nightLightStatus == .on else { break }
+        for key in dayKeys[startIndex...] {
+            guard isComplete(recordMap[key]) else { break }
             streak += 1
         }
         return streak

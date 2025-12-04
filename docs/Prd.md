@@ -1,5 +1,33 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.13）
+- 目的：当前 streak 起算规则允许今日缺失时从昨日起跳，但昨天缺失直接归零，保持 longest 不变；版本号 1.4.13。
+- 范围：GetStreakUseCase.computeCurrent 调整起点/累加规则并复用现有 dayKeys（夜窗 todayKey 在首位）与 recordMap；新增 isComplete 双灯判定；新增 GetStreakUseCase 单测覆盖今日/昨日全亮或缺失四场景；MARKETING_VERSION 同步。
+- 影响面：LightChainPrimaryCard、LightChainPage 底部 streak 卡、LightChainVisualizationGallery 仅数据更新，组件与样式保持现状。
+- 验收要点：今日双灯全亮→从今天累加；今日缺失→跳过今天从昨天起算，若昨天缺记录/缺灯则 current=0；向前遇缺口/缺灯/缺记录即停；longest 仍 max(current, computeLongest)；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（LightChain 显示）
+```
+[LightChainPrimaryCard]
++------------------------------------------------------+
+| Light Chain 标题                                     |
+| 副标题                                               |
+| 当前 2 天        最长 14 天                          |
++------------------------------------------------------+
+
+[LightChainPage 底部 streak 卡]
++---------------- 你的坚持天数 -------------------------+
+| 2 天坚持 · 14 天最佳                                  |
+| [|||] 当前:2     [|||] 最长:14                       |
++------------------------------------------------------+
+```
+
+### 技术架构与要点更新
+- GetStreakUseCase：新增 isComplete(record) 复用双灯全亮判定；computeCurrent 先看 todayKey 是否全亮，全亮从 index 0 累加，否则从 index 1（昨日）开始，起点缺失直接 0，向前遇缺口/缺灯即停；computeLongest 与 longest 计算保持原样。
+- 数据流：沿用 NightWindow 生成 dayKeys 与 recordMap（无新增存储/UI 组件），LightChain 相关视图自动读取最新 current 值。
+- 测试：DaylightTests/GetStreakUseCaseTests 覆盖今日/昨日全亮、今日缺失但昨日全亮、昨日缺灯/缺记录归零等四场景，保证 current 起点与停顿规则符合预期。
+- 版本：MARKETING_VERSION 更新至 1.4.13；其他模块逻辑与 DesignSystem 不受影响。
+
 ## 新版本更新（1.4.12）
 - 目的：日间承诺推荐理由升级为 3 槽原地补位，基于 8 条本地文案池避免重复与空槽；版本号 1.4.12。
 - 范围：DayCommitmentPage TextField 绑定 viewModel.commitmentText，推荐区改为 ForEach 三槽胶囊按钮（plain）；TodayViewModel 新增 allSuggestions(8)、suggestionsVisible/usedSuggestionIds 状态与 setupSuggestions/pickSuggestion/onTextChanged/refillSlot 补位逻辑；提交按钮 1–80 字启用，复用 submitCommitment；MARKETING_VERSION 同步。
