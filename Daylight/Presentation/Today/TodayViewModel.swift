@@ -399,6 +399,41 @@ final class TodayViewModel: ObservableObject {
         return dateHelper.dayFormatter.date(from: key) ?? reference
     }
 
+    /// 生成当前周按 locale 首日排序的 dayKey 列表（已按夜窗归一化）。
+    func currentWeekDayKeys(now: Date = Date()) -> [String] {
+        var calendar = dateHelper.calendar
+        calendar.timeZone = dateHelper.timeZone
+
+        let todayKey = todayKey(for: now)
+        guard let todayDate = dateHelper.dayFormatter.date(from: todayKey) else { return [] }
+
+        let weekday = calendar.component(.weekday, from: todayDate)
+        let startOffset = -((weekday - calendar.firstWeekday + 7) % 7)
+        guard let weekStart = calendar.date(byAdding: .day, value: startOffset, to: todayDate) else { return [] }
+
+        return (0..<7).compactMap { offset -> String? in
+            calendar.date(byAdding: .day, value: offset, to: weekStart).map { dateHelper.dayFormatter.string(from: $0) }
+        }
+    }
+
+    /// 返回当前周 7 天的灯链数据，缺失填充默认灭灯记录。
+    func weekLightChain(now: Date = Date()) -> [DayRecord] {
+        let userId = currentUserId ?? ""
+        let keys = currentWeekDayKeys(now: now)
+        guard keys.count == 7 else {
+            return Array(repeating: defaultRecord(for: userId, date: todayKey(for: now)), count: 7)
+        }
+
+        var map = Dictionary(uniqueKeysWithValues: lightChain.map { ($0.date, $0) })
+        if let record = state.record {
+            map[record.date] = record
+        }
+
+        return keys.map { key in
+            map[key] ?? defaultRecord(for: userId, date: key)
+        }
+    }
+
     func prepareNightPage(dayKey: String? = nil) {
         if let dayKey {
             nightDayKey = dayKey

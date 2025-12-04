@@ -169,19 +169,13 @@ struct TodayView: View {
     }
 
     private var lightChainBar: some View {
-        let lamps = Array(viewModel.lightChain.suffix(7))
-        let paddingCount = max(0, 7 - lamps.count)
+        let lamps = viewModel.weekLightChain()
         return Button {
             toggleStats()
         } label: {
             HStack(spacing: 18) {
                 ForEach(Array(lamps.enumerated()), id: \.offset) { _, record in
                     LightDot(status: LightDotStatus(dayLight: record.dayLightStatus, nightLight: record.nightLightStatus))
-                }
-                if paddingCount > 0 {
-                    ForEach(0..<paddingCount, id: \.self) { _ in
-                        LightDot(status: .off)
-                    }
                 }
             }
             .padding(.vertical, 10)

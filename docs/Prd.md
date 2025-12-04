@@ -1,5 +1,26 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.14）
+- 目的：首页灯带按本地周序列（尊重 locale 首日、时区与夜窗归一化）固定 7 盏，今天落在对应位置；版本号 1.4.14。
+- 范围：TodayViewModel 新增 currentWeekDayKeys/weekLightChain 基于 todayKey（夜窗）+ calendar.firstWeekday 生成 7 个 dayKey，lightChain 14 天与 state.record 组 Map，缺失用 defaultRecord 填充；TodayView.lightChainBar 直接渲染 weekLightChain（无 suffix/padding），点击展开统计逻辑保持；LoadLightChain 拉取周期不变。
+- 影响面：仅首页底部灯带顺序与数量更新，Stats 展开/LightChain 可视化/通知/后端接口均不变，DesignSystem 仍用 LightDot。
+- 验收要点：周日/周一起始 locale 下今天均落在对应序位；跨月周显示正确；夜窗凌晨归前一日仍按周序；灯数恒 7 且缺失为灭灯；点击灯带可正常展开/收起统计；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（首页底部灯带，随 locale 首日变化）
+```
+[Mon][Tue][Wed][Thu][Fri][Sat][Sun]
+  o    o    O    .    .    .    .
+```
+```
+[Sun][Mon][Tue][Wed][Thu][Fri][Sat]
+  .    o    o    O    .    .    .
+```
+
+### 技术架构与要点更新
+- TodayViewModel：currentWeekDayKeys 使用 todayKey(for:) 结合 dateHelper.calendar/timeZone 与 calendar.firstWeekday 计算本周起点并生成 7 个 dayKey；weekLightChain 以 lightChain 为基础由 state.record 覆盖同日，按周序回填 defaultRecord（userId 为空用空字符串），保证返回长度 7。
+- TodayView：lightChainBar 直接消费 weekLightChain 渲染 7 盏 LightDot，无额外补位，点击行为/动画保持不变。
+- 数据/接口：LoadLightChain 仍请求近 14 天，record(for:) 与 monthRecords 逻辑不动；设计系统与其他页面未新增组件或改样式。
+
 ## 新版本更新（1.4.13）
 - 目的：当前 streak 起算规则允许今日缺失时从昨日起跳，但昨天缺失直接归零，保持 longest 不变；版本号 1.4.13。
 - 范围：GetStreakUseCase.computeCurrent 调整起点/累加规则并复用现有 dayKeys（夜窗 todayKey 在首位）与 recordMap；新增 isComplete 双灯判定；新增 GetStreakUseCase 单测覆盖今日/昨日全亮或缺失四场景；MARKETING_VERSION 同步。
