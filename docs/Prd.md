@@ -1,5 +1,47 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.18）
+- 目的：修复 NightGuard 未写承诺态同帧双导航导致偶发空白页，补强夜间提醒窗口校验避免超长跨日误判；版本号 1.4.18。
+- 范围：NightGuardPage 未写承诺 CTA 异步导航 DayCommitment；SettingsPage 夜间提醒窗口校验新增最大时长（12h）限制；MARKETING_VERSION 同步。
+- 影响面：沿用夜间 DaylightCTAButton/配色，无新增组件；合法短跨日窗口（如 22:30–00:30）依旧通过；通知排程/路由保持原逻辑。
+- 验收要点：夜页“去写承诺”直接进入 DayCommitment 不再回首页或白屏；start>end 且跨度>12h 阻止保存并提示顺序错误；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（NightGuard 未写承诺态）
+```
+夜晚页（未写承诺 notEligible）
+┌ NightGuard (bgNight) ┐
+│  🌙  [GlowingMoon]   │
+│  标题: night.state.notReady.title (金色)      │
+│  正文: night.subtitle.notReady (白色次级)     │
+│                                               │
+│  [ 去写承诺 ]  DaylightCTAButton(kind:.nightPrimary)
+│      行为: dismiss -> (下一帧) navigateToDayPage(dayKey:nil)
+│                                               │
+│  [ 回首页 ]   DaylightCTAButton(kind:.nightPrimary)
+└───────────────────────────────────────────────┘
+```
+
+### ASCII 原型（设置页夜间提醒区非法窗口）
+```
+设置页夜间提醒区（非法窗口时）
+┌ 通知设置卡片 (bgOverlay08, radius card) ┐
+│ 开启夜间提醒      [ ON ] (Switch tint glowGold)         │
+│ 最早入睡时间      [22:30 ▾] (TimePicker dark)           │
+│ 最晚入睡时间      [00:30 ▾] (TimePicker dark)           │
+│ 夜间提醒间隔      [30 min ▾] (Menu)                     │
+│ 显示承诺文案      [ ON ]                                │
+│                                                       │
+│ ! 最晚入睡需晚于最早入睡（支持跨日），请调整后再保存   │
+│   (caption, DaylightColors.statusError, left aligned)  │
+└───────────────────────────────────────────────────────┘
+```
+
+### 技术架构与要点更新
+- NightGuardPage：notEligible 动作保留 dismiss，导航通过 `DispatchQueue.main.async { viewModel.navigateToDayPage(dayKey: nil) }` 避免同帧双导航。
+- SettingsPage：`nightWindowValidation` 增加 `maxDuration = 12h`，duration<=0 或 duration>maxDuration 统一提示 `settings.night.validation.order`，NotificationSettingsView 自动展示 footer。
+- 设计：沿用 DesignSystem 夜间 CTA/颜色与现有路由 TodayNavigationRouter.navigateToDayPage，不新增组件或样式。
+- 版本：MARKETING_VERSION 更新至 1.4.18，其他模块行为保持。
+
 ## 新版本更新（1.4.17）
 - 目的：梳理 Today/Settings 视图结构与命名，提炼常量/Helper，保持业务逻辑与接口不变；版本号 1.4.17。
 - 范围：TodayView 拆 Header/Summary/QuickActions/Timeline/Tips 子视图与 Layout 常量；TodayViewModel 拆 Actions/Summary/Timeline extension；NotificationScheduler/DesignTokens 语义化命名与请求 helper；SettingsPage 引入 SettingsSection/SettingsRow 数据模型与 SettingsHeaderView/NotificationSettingsView/SyncSettingsView/AboutSectionView；MockDataProvider 超长行折行；MARKETING_VERSION 同步。

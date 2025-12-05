@@ -187,7 +187,9 @@ struct NightGuardPage: View {
             DaylightCTAButton(title: NSLocalizedString("night.button.commit", comment: ""),
                               kind: .nightPrimary) {
                 dismiss()
-                viewModel.navigateToDayPage()
+                DispatchQueue.main.async {
+                    viewModel.navigateToDayPage()
+                }
             }
 
             DaylightCTAButton(title: NSLocalizedString("night.button.home", comment: ""),

@@ -224,10 +224,11 @@ extension SettingsPage {
         }
         let startMinutes = startHour * 60 + startMinute
         let endMinutes = endHour * 60 + endMinute
+        let maxDuration = 12 * 60
         let duration = startMinutes == endMinutes
         ? 0
         : (startMinutes < endMinutes ? endMinutes - startMinutes : (24 * 60 - startMinutes + endMinutes))
-        if duration <= 0 {
+        if duration <= 0 || duration > maxDuration {
             return (false, NSLocalizedString("settings.night.validation.order", comment: ""))
         }
         return (true, nil)
