@@ -1,6 +1,14 @@
 import Foundation
 import UserNotifications
 
+struct NotificationPlanInput {
+    let settings: Settings
+    let record: DayRecord?
+    let user: User?
+    let effectiveDayKey: String
+    let nextDayKeyOverride: String?
+}
+
 final class TodayNotificationCoordinator {
     private var notificationScheduler: NotificationScheduler
     private var dateHelper: DaylightDateHelper
@@ -39,67 +47,60 @@ final class TodayNotificationCoordinator {
         await notificationScheduler.authorizationStatusWithCache()
     }
 
-    func scheduleNotifications(settings: Settings,
-                               record: DayRecord?,
-                               user: User?,
-                               effectiveDayKey: String,
-                               nextDayKeyOverride: String? = nil,
-                               now: Date = Date()) async {
-        let nightNeeded = shouldScheduleNight(for: record)
-        let context = makeNotificationContext(settings: settings, record: record, user: user)
-        let computedNext = nextDayKeyOverride ?? nextDayKey(from: effectiveDayKey, settings: settings)
+    func scheduleNotifications(input: NotificationPlanInput, now: Date = Date()) async {
+        let nightNeeded = shouldScheduleNight(for: input.record)
+        let context = makeNotificationContext(settings: input.settings, record: input.record, user: input.user)
+        let computedNext = input.nextDayKeyOverride ?? nextDayKey(from: input.effectiveDayKey, settings: input.settings)
         let nextContext = NotificationContext(
-            nickname: user?.nickname,
+            nickname: input.user?.nickname,
             hasCommitmentToday: false,
             commitmentPreview: nil,
-            showCommitmentInNotification: settings.showCommitmentInNotification
+            showCommitmentInNotification: input.settings.showCommitmentInNotification
         )
-        await notificationScheduler.reschedule(settings: settings,
-                                               nightReminderNeeded: nightNeeded,
-                                               dayKey: effectiveDayKey,
-                                               nextDayKey: computedNext,
-                                               context: context,
-                                               nextDayContext: nextContext,
+        let plan = NotificationSchedulePlan(dayKey: input.effectiveDayKey,
+                                            nextDayKey: computedNext,
+                                            context: context,
+                                            nextDayContext: nextContext,
+                                            nightReminderNeeded: nightNeeded)
+        await notificationScheduler.reschedule(settings: input.settings,
+                                               plan: plan,
                                                now: now)
     }
 
-    func forceRescheduleTonight(settings: Settings,
-                                record: DayRecord?,
-                                user: User?,
+    func forceRescheduleTonight(input: NotificationPlanInput,
                                 timeline: NightTimeline,
                                 now: Date = Date()) async {
-        let nightNeeded = shouldScheduleNight(for: record)
-        let context = makeNotificationContext(settings: settings, record: record, user: user)
-        await notificationScheduler.reschedule(settings: settings,
-                                               nightReminderNeeded: nightNeeded,
-                                               dayKey: timeline.dayKey,
-                                               nextDayKey: nil,
-                                               context: context,
+        let nightNeeded = shouldScheduleNight(for: input.record)
+        let context = makeNotificationContext(settings: input.settings, record: input.record, user: input.user)
+        let plan = NotificationSchedulePlan(dayKey: timeline.dayKey,
+                                            nextDayKey: nil,
+                                            context: context,
+                                            nextDayContext: .empty,
+                                            nightReminderNeeded: nightNeeded)
+        await notificationScheduler.reschedule(settings: input.settings,
+                                               plan: plan,
                                                now: now)
     }
 
     func handleTimeChange(event: TimeChangeEvent,
-                          settings: Settings,
-                          record: DayRecord?,
-                          user: User?,
-                          effectiveDayKey: String,
-                          nextDayKeyOverride: String?,
+                          input: NotificationPlanInput,
                           now: Date = Date()) async {
-        let nightNeeded = shouldScheduleNight(for: record)
-        let context = makeNotificationContext(settings: settings, record: record, user: user)
+        let nightNeeded = shouldScheduleNight(for: input.record)
+        let context = makeNotificationContext(settings: input.settings, record: input.record, user: input.user)
         let nextContext = NotificationContext(
-            nickname: user?.nickname,
+            nickname: input.user?.nickname,
             hasCommitmentToday: false,
             commitmentPreview: nil,
-            showCommitmentInNotification: settings.showCommitmentInNotification
+            showCommitmentInNotification: input.settings.showCommitmentInNotification
         )
+        let plan = NotificationSchedulePlan(dayKey: input.effectiveDayKey,
+                                            nextDayKey: input.nextDayKeyOverride,
+                                            context: context,
+                                            nextDayContext: nextContext,
+                                            nightReminderNeeded: nightNeeded)
         await notificationScheduler.handleTimeChange(event: event,
-                                                     settings: settings,
-                                                     nightReminderNeeded: nightNeeded,
-                                                     dayKey: effectiveDayKey,
-                                                     nextDayKey: nextDayKeyOverride,
-                                                     context: context,
-                                                     nextDayContext: nextContext,
+                                                     settings: input.settings,
+                                                     plan: plan,
                                                      now: now)
     }
 
@@ -109,11 +110,12 @@ final class TodayNotificationCoordinator {
                                    dayKey: String) async {
         guard let settings else { return }
         if notificationScheduler.lastScheduledDayKey() != dayKey {
-            await scheduleNotifications(settings: settings,
-                                        record: record,
-                                        user: user,
-                                        effectiveDayKey: dayKey,
-                                        nextDayKeyOverride: nil)
+            let input = NotificationPlanInput(settings: settings,
+                                              record: record,
+                                              user: user,
+                                              effectiveDayKey: dayKey,
+                                              nextDayKeyOverride: nil)
+            await scheduleNotifications(input: input)
         }
     }
 
@@ -134,11 +136,12 @@ final class TodayNotificationCoordinator {
         let window = NightWindow(start: settings.nightReminderStart, end: settings.nightReminderEnd)
         let dayKey = record?.date ?? dateHelper.localDayString(for: now, nightWindow: window)
         let nextKey = nextDayKey(from: dayKey, settings: settings)
-        await scheduleNotifications(settings: settings,
-                                    record: record,
-                                    user: user,
-                                    effectiveDayKey: dayKey,
-                                    nextDayKeyOverride: nextKey)
+        let input = NotificationPlanInput(settings: settings,
+                                          record: record,
+                                          user: user,
+                                          effectiveDayKey: dayKey,
+                                          nextDayKeyOverride: nextKey)
+        await scheduleNotifications(input: input, now: now)
 
         guard let record else { return nil }
         let timeline = dateHelper.nightTimeline(settings: settings, now: now, dayKeyOverride: record.date)

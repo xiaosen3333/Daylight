@@ -4,13 +4,13 @@ import SwiftUI
 struct TodayView: View {
     @StateObject var viewModel: TodayViewModel
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showDayPage = false
-    @State private var showNightPage = false
-    @State private var showSettingsPage = false
-    @State private var showStats = false
-    @State private var isLoadingStats = false
-    @State private var selectedRecord: DayRecord?
-    @State private var currentMonth: Date = Date()
+    @State var showDayPage = false
+    @State var showNightPage = false
+    @State var showSettingsPage = false
+    @State var showStats = false
+    @State var isLoadingStats = false
+    @State var selectedRecord: DayRecord?
+    @State var currentMonth: Date = Date()
     @State private var scrollOffset: CGFloat = 0
 
     var body: some View {
@@ -25,70 +25,7 @@ struct TodayView: View {
                         }
                         .frame(height: 0)
 
-                        VStack(spacing: showStats ? 0 : 16) {
-                            HStack {
-                                Spacer()
-                                Button {
-                                    showSettingsPage = true
-                                } label: {
-                                    Image(systemName: "gearshape.fill")
-                                        .foregroundColor(.white.opacity(DaylightTextOpacity.secondary))
-                                        .padding(10)
-                                        .background(DaylightColors.bgOverlay12)
-                                        .clipShape(Circle())
-                                }
-                                .padding(.trailing, 10)
-                            }
-                            .padding(.top, 44)
-                            .padding(.trailing, 20)
-
-                            VStack(spacing: showStats ? -20 : 24) {
-                                GlowingSun(size: 140)
-                                    .padding(.top, showStats ? 20 : 40)
-
-                                VStack(spacing: showStats ? 0 : 4) {
-                                    Text(homeTitle)
-                                        .daylight(.hero, alignment: .center, lineLimit: 2)
-                                    Text(homeSubtitle)
-                                        .daylight(.bodyLarge,
-                                                  color: .white.opacity(DaylightTextOpacity.secondary),
-                                                  alignment: .center,
-                                                  lineLimit: 2)
-                                }
-                                .padding(.top, 4)
-
-                                if !showStats {
-                                    getStartedButton
-                                        .padding(.top, 6)
-                                    if showSleepCTA {
-                                        sleepCTAButton
-                                    }
-                                    if viewModel.canShowWakeButton() {
-                                        DaylightCTAButton(title: NSLocalizedString("home.button.wake", comment: ""),
-                                                          kind: .dayPrimary) {
-                                            Task { await viewModel.undoSleepNow() }
-                                        }
-                                        .padding(.top, 4)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 28)
-                            .offset(y: showStats ? -90 : 0)
-                            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showStats)
-
-                            Spacer(minLength: showStats ? -80 : 50)
-
-                            lightChainBar
-                                .padding(.bottom, 28)
-
-                            if showStats {
-                                statsGrid
-                                    .padding(.horizontal, 12)
-                                    .padding(.top, 0)
-                                    .padding(.bottom, 32)
-                            }
-                        }
-                        .frame(minHeight: geo.size.height + (showStats ? 60 : 0))
+                        content(for: geo.size)
                     }
                     .coordinateSpace(name: "scroll")
                     .onPreferenceChange(ScrollOffsetKey.self) { offset in
@@ -104,8 +41,8 @@ struct TodayView: View {
                             }
                         }
                     )
+                }
             }
-        }
             .ignoresSafeArea()
             .onAppear {
                 viewModel.onAppear()
@@ -123,14 +60,7 @@ struct TodayView: View {
             .onReceive(NotificationCenter.default.publisher(for: .daylightNavigate)) { notification in
                 guard let deeplink = notification.userInfo?["deeplink"] as? String else { return }
                 let dayKey = notification.userInfo?["dayKey"] as? String
-                if deeplink == "day" {
-                    showDayPage = true
-                } else if deeplink == "night" {
-                    viewModel.prepareNightPage(dayKey: dayKey)
-                    showNightPage = true
-                } else if deeplink == "settings" {
-                    showSettingsPage = true
-                }
+                handleDeeplink(deeplink, dayKey: dayKey)
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
@@ -158,408 +88,42 @@ struct TodayView: View {
         }
     }
 
-    private var background: some View {
-        DaylightColors.bgPrimary
-    }
-
-    private var getStartedButton: some View {
-        DaylightPrimaryButton(title: homeButtonTitle) {
-            showDayPage = true
-        }
-    }
-
-    private var lightChainBar: some View {
-        let lamps = viewModel.weekLightChain()
-        return Button {
-            toggleStats()
-        } label: {
-            HStack(spacing: 18) {
-                ForEach(Array(lamps.enumerated()), id: \.offset) { _, record in
-                    LightDot(status: LightDotStatus(dayLight: record.dayLightStatus, nightLight: record.nightLightStatus))
-                }
-            }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Stats cards (inline)
-    private var statsGrid: some View {
-        let todayKey = viewModel.todayKey()
-        let normalized = viewModel.normalizedMonthRecords(todayKey: todayKey)
-        return LightChainVisualizationGallery(
-            records: normalized,
-            selectedRecord: selectedRecord,
-            streak: viewModel.state.streak,
-            currentMonth: currentMonth,
-            userId: viewModel.currentUserId ?? "",
-            locale: viewModel.locale,
-            timeZone: viewModel.dateHelper.timeZone,
-            todayKey: todayKey,
-            onMonthChange: { newMonth in
-                currentMonth = newMonth
-                Task { await loadStatsData(month: newMonth) }
-            },
-            onSelect: { record in
-                selectedRecord = record
-            }
-        )
-        .environment(\.locale, viewModel.locale)
-    }
-
-    private var weekdayHeader: some View {
-        HStack {
-            ForEach(weekdaySymbols, id: \.self) { day in
-                Text(day)
-                    .daylight(.caption2, color: .white.opacity(DaylightTextOpacity.tertiary))
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    private var calendarGrid: some View {
-        let weeks = monthGridData()
-        return VStack(spacing: 8) {
-            ForEach(weeks.indices, id: \.self) { row in
-                HStack(spacing: 8) {
-                    ForEach(Array(weeks[row].indices), id: \.self) { col in
-                        if let day = weeks[row][col] {
-                            dayCell(day)
-                        } else {
-                            Spacer()
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func dayCell(_ day: DayCell) -> some View {
-        let style = dayStatus(for: day.record).style(using: DayVisualStylePalette.mainCalendar)
-        return Button {
-            selectedRecord = day.record
-        } label: {
-            VStack {
-                Text(day.dayString)
-                    .daylight(.caption1, color: style.text)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        Circle()
-                            .fill(style.background)
-                            .frame(width: 36, height: 36)
-                            .shadow(color: style.glow, radius: style.glowRadius, x: 0, y: 0)
-                    )
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func toggleStats() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-            showStats.toggle()
-        }
-        if showStats {
-            Task { await loadStatsData() }
-        }
-    }
-
-    private func loadStatsData(month: Date? = nil) async {
-        let now = Date()
-        var calendar = viewModel.dateHelper.calendar
-        calendar.timeZone = viewModel.dateHelper.timeZone
-        let todayKey = viewModel.todayKey(for: now)
-        let effectiveToday = viewModel.dateHelper.dayFormatter.date(from: todayKey) ?? calendar.startOfDay(for: now)
-        var targetMonth = month ?? currentMonth
-        if month == nil && !calendar.isDate(effectiveToday, equalTo: targetMonth, toGranularity: .month) {
-            targetMonth = effectiveToday
-        }
-        currentMonth = targetMonth
-        isLoadingStats = true
-        await viewModel.loadMonth(targetMonth)
-        let normalized = viewModel.normalizedMonthRecords(todayKey: todayKey)
-        if let today = normalized.first(where: { $0.date == todayKey }) {
-            selectedRecord = today
-        } else {
-            let userId = viewModel.currentUserId ?? ""
-            selectedRecord = DayRecord.defaultRecord(for: userId, date: todayKey)
-        }
-        isLoadingStats = false
-    }
-
-    private func changeMonth(by offset: Int) {
-        if let newMonth = viewModel.dateHelper.calendar.date(byAdding: .month, value: offset, to: currentMonth) {
-            currentMonth = newMonth
-            Task { await loadStatsData(month: newMonth) }
-        }
-    }
-
-    private func monthTitle(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeZone = viewModel.dateHelper.timeZone
-        formatter.locale = viewModel.locale
-        formatter.dateFormat = "LLLL yyyy"
-        return formatter.string(from: date)
-    }
-
-    private var weekdaySymbols: [String] {
-        let formatter = DateFormatter()
-        formatter.locale = viewModel.locale
-        formatter.timeZone = viewModel.dateHelper.timeZone
-        let symbols = formatter.shortStandaloneWeekdaySymbols ?? formatter.shortWeekdaySymbols ?? ["Su","Mo","Tu","We","Th","Fr","Sa"]
-        let start = max(0, viewModel.dateHelper.calendar.firstWeekday - 1)
-        if start == 0 { return symbols }
-        let head = Array(symbols[start...])
-        let tail = Array(symbols[..<start])
-        return head + tail
-    }
-
-    private func formattedDate(_ record: DayRecord) -> String {
-        viewModel.dateHelper.formattedDay(record.date, locale: viewModel.locale)
-    }
-
-    private enum HomeLampStatus {
-        case off, dayOnly, both
-    }
-
-    private var homeStatus: HomeLampStatus {
-        guard let record = viewModel.state.record else { return .off }
-        if record.dayLightStatus == .on && record.nightLightStatus == .on {
-            return .both
-        }
-        if record.dayLightStatus == .on {
-            return .dayOnly
-        }
-        return .off
-    }
-
-    private var nightCTAContext: TodayViewModel.NightGuardContext? {
-        viewModel.nightCTAContext()
-    }
-
-    private var showSleepCTA: Bool {
-        nightCTAContext != nil
-    }
-
-    private var sleepCTAButton: some View {
-        Group {
-            if let context = nightCTAContext {
-                nightCTAContent(for: context)
-            }
-        }
-    }
-
-    private var homeButtonTitle: String {
-        switch homeStatus {
-        case .off, .both:
-            return NSLocalizedString("home.button", comment: "")
-        case .dayOnly:
-            return NSLocalizedString("home.button.day", comment: "")
-        }
-    }
-
-    private var homeTitle: String {
-        switch homeStatus {
-        case .off:
-            return NSLocalizedString("home.title", comment: "")
-        case .dayOnly:
-            return NSLocalizedString("home.title.day", comment: "")
-        case .both:
-            return NSLocalizedString("home.title.both", comment: "")
-        }
-    }
-
-    private var homeSubtitle: String {
-        switch homeStatus {
-        case .off:
-            return NSLocalizedString("home.subtitle", comment: "")
-        case .dayOnly:
-            return NSLocalizedString("home.subtitle.day", comment: "")
-        case .both:
-            return NSLocalizedString("home.subtitle.both", comment: "")
-        }
-    }
-
-    private func nightCTAConfig(for context: TodayViewModel.NightGuardContext) -> String? {
-        switch context.phase {
-        case .early:
-            return NSLocalizedString("home.button.sleep.early", comment: "")
-        case .inWindow:
-            return NSLocalizedString("home.button.sleep", comment: "")
-        case .expired:
-            return NSLocalizedString("home.button.sleep.expired", comment: "")
-        default:
-            return nil
-        }
-    }
-
-    private func openNight(with context: TodayViewModel.NightGuardContext) {
-        viewModel.prepareNightPage(dayKey: context.dayKey)
-        showNightPage = true
-    }
-
-    private func nightCTAContent(for context: TodayViewModel.NightGuardContext) -> some View {
-        Group {
-            if let config = nightCTAConfig(for: context) {
-                VStack(spacing: 4) {
-                    DaylightCTAButton(title: config,
-                                      kind: .dayPrimary) {
-                        openNight(with: context)
-                    }
-                }
-                .padding(.top, 2)
-            }
-        }
-    }
-
-    private func monthGridData() -> [[DayCell?]] {
-        var calendar = viewModel.dateHelper.calendar
-        calendar.timeZone = viewModel.dateHelper.timeZone
-        guard let startDate = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)),
-              let range = calendar.range(of: .day, in: .month, for: currentMonth) else {
-            return []
-        }
-        let firstWeekday = calendar.component(.weekday, from: startDate) // 1=Sun
-        var cells: [DayCell?] = Array(repeating: nil, count: firstWeekday - 1)
-
-        let recordMap = Dictionary(uniqueKeysWithValues: viewModel.monthRecords.map { ($0.date, $0) })
-        for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: startDate) {
-                let dateString = viewModel.dateHelper.dayFormatter.string(from: date)
-                let record = recordMap[dateString] ?? DayRecord.defaultRecord(for: viewModel.currentUserId ?? "", date: dateString)
-                cells.append(DayCell(date: date, record: record, calendar: calendar, formatter: viewModel.dateHelper.dayFormatter))
-            }
-        }
-
-        var weeks: [[DayCell?]] = []
-        var index = 0
-        while index < cells.count {
-            let end = min(index + 7, cells.count)
-            weeks.append(Array(cells[index..<end]))
-            index += 7
-        }
-        return weeks
-    }
-
-}
-
-// MARK: - Day Commitment Page 对齐 daycommit.png
-struct DayCommitmentPage: View {
-    @ObservedObject var viewModel: TodayViewModel
-    @Environment(\.dismiss) private var dismiss
-    private let maxCommitmentLength = 80
-
-    var body: some View {
-        ZStack {
-            DaylightColors.bgPrimary
-                .ignoresSafeArea()
-
-            VStack(spacing: 24) {
-                GlowingSun(size: 120)
-                    .padding(.top, 40)
-
-                Text(NSLocalizedString("commit.title.full", comment: ""))
-                    .daylight(.title2, alignment: .center, lineLimit: 2)
-                    .padding(.horizontal, 24)
-
-                VStack(spacing: 12) {
-                    capsuleField(title: NSLocalizedString("commit.placeholder.short", comment: ""), isEditable: true)
-                    ForEach(Array(viewModel.suggestionsVisible.enumerated()), id: \.element.id) { index, slot in
-                        suggestionButton(slot: slot, index: index)
-                    }
-                }
-                .padding(.top, 12)
-
-                DaylightPrimaryButton(title: NSLocalizedString("common.confirm", comment: ""),
-                                      isEnabled: isCommitmentValid,
-                                      isLoading: viewModel.state.isSavingCommitment) {
-                    Task { await submitCommitment() }
-                }
-                .padding(.top, 8)
-
-                Spacer()
-            }
-            .padding(.horizontal, 32)
-            .onAppear {
-                let initialText = viewModel.state.record?.commitmentText ?? viewModel.commitmentText
-                viewModel.commitmentText = initialText
-                viewModel.setupSuggestions(initialText: initialText)
-            }
-            .onChange(of: viewModel.locale) { _, _ in
-                viewModel.setupSuggestions(initialText: viewModel.commitmentText)
-            }
-            .onChange(of: viewModel.commitmentText) { _, newValue in
-                let limited = String(newValue.prefix(maxCommitmentLength))
-                if limited != newValue {
-                    viewModel.commitmentText = limited
-                    return
-                }
-                viewModel.onTextChanged(newValue)
-            }
-        }
-    }
-
-    private var isCommitmentValid: Bool {
-        let trimmed = viewModel.commitmentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && trimmed.count <= maxCommitmentLength
-    }
-
-    private func submitCommitment() async {
-        let trimmed = viewModel.commitmentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= maxCommitmentLength else { return }
-        viewModel.commitmentText = trimmed
-        await viewModel.submitCommitment()
-        if viewModel.state.errorMessage == nil {
-            dismiss()
-        }
-    }
-
     @ViewBuilder
-    private func capsuleField(title: String, isEditable: Bool) -> some View {
-        if isEditable {
-            TextField(title, text: Binding(
-                get: { viewModel.commitmentText },
-                set: { viewModel.commitmentText = $0 }
-            ))
-            .padding(.horizontal, 18)
-            .frame(height: 52)
-            .background(DaylightColors.actionPrimary)
-            .cornerRadius(DaylightRadius.capsule)
-            .foregroundColor(.white)
-        } else {
-            Text(title)
-                .daylight(.body2, color: .white, alignment: .leading)
-                .padding(.horizontal, 18)
-                .frame(height: 52)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(DaylightColors.actionPrimary)
-                .cornerRadius(DaylightRadius.capsule)
-        }
-    }
-
-    @ViewBuilder
-    private func suggestionButton(slot: TodayViewModel.SuggestionSlot, index: Int) -> some View {
-        if let suggestion = slot.text {
-            Button {
-                viewModel.pickSuggestion(at: index)
-            } label: {
-                Text(suggestion)
-                    .daylight(.body2, color: .white, alignment: .leading)
-                    .padding(.horizontal, 18)
-                    .frame(height: 52)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(DaylightColors.actionPrimary)
-                    .cornerRadius(DaylightRadius.capsule)
+    private func content(for size: CGSize) -> some View {
+        VStack(spacing: showStats ? TodayViewLayout.compactStackSpacing : TodayViewLayout.stackSpacing) {
+            TodayHeaderView {
+                showSettingsPage = true
             }
-            .buttonStyle(.plain)
-        } else {
-            RoundedRectangle(cornerRadius: DaylightRadius.capsule)
-                .fill(DaylightColors.actionPrimary.opacity(0.24))
-                .frame(height: 52)
-                .frame(maxWidth: .infinity)
+            .padding(.top, TodayViewLayout.headerTopPadding)
+            .padding(.horizontal, TodayViewLayout.headerHorizontalPadding)
+
+            SummaryCardView(homeTitle: homeTitle, homeSubtitle: homeSubtitle, showStats: showStats) {
+                QuickActionsView {
+                    getStartedButton
+                        .padding(.top, 6)
+                    if showSleepCTA {
+                        sleepCTAButton
+                    }
+                    if let wakeButton {
+                        wakeButton
+                    }
+                }
+            }
+            .padding(.horizontal, 28)
+            .offset(y: showStats ? TodayViewLayout.statsLift : 0)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showStats)
+
+            Spacer(minLength: showStats ? TodayViewLayout.compactSpacer : TodayViewLayout.defaultSpacer)
+
+            TimelineSectionView(lightChainBar: lightChainBar.eraseToAnyView(),
+                                statsGrid: showStats ? AnyView(statsGrid) : nil)
+
+            if let tipsContent {
+                TipsCardView {
+                    tipsContent
+                }
+            }
         }
+        .frame(minHeight: size.height + (showStats ? TodayViewLayout.statsExtraHeight : 0))
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 项目已使用的文本样式映射，直接复用现有 Typography/Colors/Opacity。
-enum DaylightTextStyle {
+enum DaylightTextStyle: Hashable {
     case hero
     case display
     case title2
@@ -42,29 +42,30 @@ extension Text {
     }
 
     private func font(for style: DaylightTextStyle) -> Font {
-        switch style {
-        case .hero: return DaylightTypography.hero
-        case .display: return DaylightTypography.display
-        case .title2: return DaylightTypography.title2
-        case .title3: return DaylightTypography.title3
-        case .headline: return DaylightTypography.headline
-        case .subhead: return DaylightTypography.subhead
-        case .subheadSemibold: return DaylightTypography.subheadSemibold
-        case .bodyLarge: return DaylightTypography.bodyLarge
-        case .body2: return DaylightTypography.body2
-        case .body2Medium: return DaylightTypography.body2Medium
-        case .footnote: return DaylightTypography.footnote
-        case .footnoteMedium: return DaylightTypography.footnoteMedium
-        case .footnoteSemibold: return DaylightTypography.footnoteSemibold
-        case .caption1: return DaylightTypography.caption1
-        case .caption1Medium: return DaylightTypography.caption1Medium
-        case .caption2: return DaylightTypography.caption2
-        case .caption: return DaylightTypography.caption
-        case .callout: return DaylightTypography.callout
-        case .streakNumber: return DaylightTypography.streakNumber
-        case .devTitle: return DaylightTypography.devTitle
-        case .body: return DaylightTypography.body
-        }
+        let map: [DaylightTextStyle: Font] = [
+            .hero: DaylightTypography.hero,
+            .display: DaylightTypography.display,
+            .title2: DaylightTypography.title2,
+            .title3: DaylightTypography.title3,
+            .headline: DaylightTypography.headline,
+            .subhead: DaylightTypography.subhead,
+            .subheadSemibold: DaylightTypography.subheadSemibold,
+            .bodyLarge: DaylightTypography.bodyLarge,
+            .body2: DaylightTypography.body2,
+            .body2Medium: DaylightTypography.body2Medium,
+            .footnote: DaylightTypography.footnote,
+            .footnoteMedium: DaylightTypography.footnoteMedium,
+            .footnoteSemibold: DaylightTypography.footnoteSemibold,
+            .caption1: DaylightTypography.caption1,
+            .caption1Medium: DaylightTypography.caption1Medium,
+            .caption2: DaylightTypography.caption2,
+            .caption: DaylightTypography.caption,
+            .callout: DaylightTypography.callout,
+            .streakNumber: DaylightTypography.streakNumber,
+            .devTitle: DaylightTypography.devTitle,
+            .body: DaylightTypography.body
+        ]
+        return map[style] ?? DaylightTypography.body
     }
 
     private func defaultColor(for style: DaylightTextStyle) -> Color {

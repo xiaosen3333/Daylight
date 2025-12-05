@@ -5,8 +5,10 @@ disabled_rules:
 opt_in_rules:
   - force_unwrapping
   - todo
-  - unused_import
   - cyclomatic_complexity
+
+analyzer_rules:
+  - unused_import
 
 line_length:
   warning: 140
@@ -15,6 +17,20 @@ line_length:
 cyclomatic_complexity:
   warning: 15
   error: 25
+
+identifier_name:
+  min_length: 3
+  max_length: 40
+  excluded:
+    - xs
+    - sm
+    - md
+    - lg
+    - xl
+    - xxl
+    - xxxl
+    - on
+    - id
 
 excluded:
   - Daylight/Assets.xcassets

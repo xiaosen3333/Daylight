@@ -1,6 +1,12 @@
 import Foundation
 
 struct MockDataSeed: Codable {
+    struct DomainSeed {
+        let user: User
+        let settings: Settings
+        let records: [DayRecord]
+    }
+
     struct SeedUser: Codable {
         let id: String
         let nickname: String?
@@ -34,7 +40,7 @@ struct MockDataSeed: Codable {
     let settings: SeedSettings
     let records: [SeedRecord]
 
-    func toDomain() -> (user: User, settings: Settings, records: [DayRecord]) {
+    func toDomain() -> DomainSeed {
         let userId = user.id
         let now = Date()
         let timezone = user.timezone ?? TimeZone.autoupdatingCurrent.identifier
@@ -79,7 +85,7 @@ struct MockDataSeed: Codable {
             )
         }
 
-        return (user: domainUser, settings: domainSettings, records: domainRecords)
+        return DomainSeed(user: domainUser, settings: domainSettings, records: domainRecords)
     }
 
     private static func status(from raw: String) -> LightStatus {
@@ -114,21 +120,102 @@ struct MockDataSeed: Codable {
                 dayReminderTime: "22:00",
                 nightReminderStart: "22:30",
                 nightReminderEnd: "00:30",
-                nightReminderInterval: 30,
-                nightReminderEnabled: true,
-                showCommitmentInNotification: true,
-                version: 1
-            ),
-            records: [
-                SeedRecord(date: "2025-11-15", dayLightStatus: "ON", nightLightStatus: "ON", commitmentText: "周末也要早点睡", sleepConfirmedAt: "2025-11-15T23:35:00+08:00", nightRejectCount: 0, updatedAt: "2025-11-15T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-16", dayLightStatus: "ON", nightLightStatus: "ON", commitmentText: "不给周一留麻烦", sleepConfirmedAt: "2025-11-16T23:18:00+08:00", nightRejectCount: 1, updatedAt: "2025-11-16T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-17", dayLightStatus: "ON", nightLightStatus: "OFF", commitmentText: "少刷短视频", sleepConfirmedAt: nil, nightRejectCount: 2, updatedAt: "2025-11-17T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-18", dayLightStatus: "ON", nightLightStatus: "ON", commitmentText: "明早要精神好", sleepConfirmedAt: "2025-11-18T23:40:00+08:00", nightRejectCount: 0, updatedAt: "2025-11-18T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-19", dayLightStatus: "ON", nightLightStatus: "ON", commitmentText: "早点睡皮肤好", sleepConfirmedAt: "2025-11-19T23:28:00+08:00", nightRejectCount: 0, updatedAt: "2025-11-19T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-20", dayLightStatus: "ON", nightLightStatus: "ON", commitmentText: "不带手机上床", sleepConfirmedAt: "2025-11-20T23:52:00+08:00", nightRejectCount: 0, updatedAt: "2025-11-20T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-21", dayLightStatus: "ON", nightLightStatus: "OFF", commitmentText: "少打游戏", sleepConfirmedAt: nil, nightRejectCount: 2, updatedAt: "2025-11-21T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-22", dayLightStatus: "OFF", nightLightStatus: "OFF", commitmentText: nil, sleepConfirmedAt: nil, nightRejectCount: 0, updatedAt: "2025-11-22T16:00:00Z", version: 1),
-                SeedRecord(date: "2025-11-23", dayLightStatus: "ON", nightLightStatus: "ON", commitmentText: "今天一定休息好", sleepConfirmedAt: "2025-11-23T23:30:00+08:00", nightRejectCount: 0, updatedAt: "2025-11-23T16:00:00Z", version: 1)
+            nightReminderInterval: 30,
+            nightReminderEnabled: true,
+            showCommitmentInNotification: true,
+            version: 1
+        ),
+        records: [
+                SeedRecord(
+                    date: "2025-11-15",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "ON",
+                    commitmentText: "周末也要早点睡",
+                    sleepConfirmedAt: "2025-11-15T23:35:00+08:00",
+                    nightRejectCount: 0,
+                    updatedAt: "2025-11-15T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-16",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "ON",
+                    commitmentText: "不给周一留麻烦",
+                    sleepConfirmedAt: "2025-11-16T23:18:00+08:00",
+                    nightRejectCount: 1,
+                    updatedAt: "2025-11-16T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-17",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "OFF",
+                    commitmentText: "少刷短视频",
+                    sleepConfirmedAt: nil,
+                    nightRejectCount: 2,
+                    updatedAt: "2025-11-17T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-18",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "ON",
+                    commitmentText: "明早要精神好",
+                    sleepConfirmedAt: "2025-11-18T23:40:00+08:00",
+                    nightRejectCount: 0,
+                    updatedAt: "2025-11-18T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-19",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "ON",
+                    commitmentText: "早点睡皮肤好",
+                    sleepConfirmedAt: "2025-11-19T23:28:00+08:00",
+                    nightRejectCount: 0,
+                    updatedAt: "2025-11-19T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-20",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "ON",
+                    commitmentText: "不带手机上床",
+                    sleepConfirmedAt: "2025-11-20T23:52:00+08:00",
+                    nightRejectCount: 0,
+                    updatedAt: "2025-11-20T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-21",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "OFF",
+                    commitmentText: "少打游戏",
+                    sleepConfirmedAt: nil,
+                    nightRejectCount: 2,
+                    updatedAt: "2025-11-21T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-22",
+                    dayLightStatus: "OFF",
+                    nightLightStatus: "OFF",
+                    commitmentText: nil,
+                    sleepConfirmedAt: nil,
+                    nightRejectCount: 0,
+                    updatedAt: "2025-11-22T16:00:00Z",
+                    version: 1
+                ),
+                SeedRecord(
+                    date: "2025-11-23",
+                    dayLightStatus: "ON",
+                    nightLightStatus: "ON",
+                    commitmentText: "今天一定休息好",
+                    sleepConfirmedAt: "2025-11-23T23:30:00+08:00",
+                    nightRejectCount: 0,
+                    updatedAt: "2025-11-23T16:00:00Z",
+                    version: 1
+                )
             ]
         )
     }

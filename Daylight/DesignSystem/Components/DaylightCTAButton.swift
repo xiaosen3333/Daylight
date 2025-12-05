@@ -12,7 +12,7 @@ struct DaylightCTAButton: View {
     let kind: Kind
     var isEnabled: Bool = true
     var isLoading: Bool = false
-    var icon: String? = nil
+    var icon: String?
     let action: () -> Void
 
     var body: some View {

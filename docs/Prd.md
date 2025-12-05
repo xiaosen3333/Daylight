@@ -1,5 +1,62 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.17）
+- 目的：梳理 Today/Settings 视图结构与命名，提炼常量/Helper，保持业务逻辑与接口不变；版本号 1.4.17。
+- 范围：TodayView 拆 Header/Summary/QuickActions/Timeline/Tips 子视图与 Layout 常量；TodayViewModel 拆 Actions/Summary/Timeline extension；NotificationScheduler/DesignTokens 语义化命名与请求 helper；SettingsPage 引入 SettingsSection/SettingsRow 数据模型与 SettingsHeaderView/NotificationSettingsView/SyncSettingsView/AboutSectionView；MockDataProvider 超长行折行；MARKETING_VERSION 同步。
+- 影响面：UI 仍用既有 DesignSystem 组件与样式（未新增皮肤），行为一致；Tips 区默认占位不显示；Mock 数据仅格式调整，业务数据不变。
+- 验收要点：Today 首页 CTA/夜间入口/灯带与统计展开收起手势保持原逻辑；Settings 保存/夜间开关触发通知同原流程；SwiftLint 命名/行长无新增警告；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（TodayView 重组）
+```
+TodayView (1.4.17)
++------------------------------------------------------+
+| [Header]                    (gear button)            |
+|------------------------------------------------------|
+| [SummaryCard]                                        |
+|   GlowingSun 140                                     |
+|   Hero title / subtitle                              |
+|   [QuickActions]                                     |
+|     - Get Started (primary)                          |
+|     - Sleep CTA (if eligible)                        |
+|     - Wake button (if eligible)                      |
+|------------------------------------------------------|
+| [TimelineSection]                                    |
+|   LightChainBar (tap -> toggle stats)                |
+|   [StatsGrid] LightChainVisualizationGallery         |
+|------------------------------------------------------|
+| [TipsCard] (reserved, hidden by default)             |
++------------------------------------------------------+
+```
+
+### ASCII 原型（SettingsPage 重组）
+```
+SettingsPage (1.4.17)
++------------------------------------------------------+
+| NavBar: Settings                                     |
+|------------------------------------------------------|
+| [SettingsHeaderView] Profile/Nickname Field          |
+|------------------------------------------------------|
+| [NotificationSettingsView]                           |
+|   - Day Reminder Time Picker                         |
+|   - Night Toggle                                     |
+|   - Night Start/End Picker                           |
+|   - Interval Menu                                    |
+|   - Show Commitment Toggle (+desc)                   |
+|   - Warning text (when夜窗非法)                       |
+|------------------------------------------------------|
+| [Language Section] Segmented language picker         |
+| [SyncSettingsView] (sync bar，可选)                   |
+| [AboutSectionView] Dev actions (trigger day/night...)|
++------------------------------------------------------+
+```
+
+### 技术架构与要点更新
+- TodayView：引入 `TodayViewLayout` 常量与 `TodayHeaderView/SummaryCardView/QuickActionsView/TimelineSectionView/TipsCardView` 组合，主体 body 仅拼装子视图；Toggle stats/导航逻辑保持，所有 DS 按钮/间距复用原样。
+- TodayViewModel：拆分 Lifecycle/Actions/Summary/Timeline extension（同文件分段），去除长闭包；保持公开接口，`canShowWakeButton/todayKey/weekLightChain` 等职责分区清晰。
+- NotificationScheduler：命名语义化（trimmedText），新增 `appendRequestIfFuture` 复用 request 添加逻辑，减少重复；DesignTokens 颜色/阴影参数重命名（alpha/red/green/blue、horizontalOffset/verticalOffset）。
+- SettingsPage：新增 `SettingsSection/SettingsRow` 数据模型与 `SettingsSectionView` 渲染器，子视图包裹 Profile/通知/语言/Dev 区块，字段绑定、保存/校验/夜间开关行为保持原逻辑。
+- Mocking：MockDataProvider 长记录按行折分，避免超长行且无强拆/强转。
+
 ## 新版本更新（1.4.16）
 - 目的：拆分 Today/UseCases，幂等启动、时间/通知/数据读写统一守护；版本号 1.4.16。
 - 范围：DaylightUseCases 拆单文件+聚合；TodayViewModel 拆 NotificationCoordinator/TimeObserver/SuggestionsProvider/StatsLoader/NavigationRouter；NotificationScheduler 注入 DaylightDateHelper；AppContainer.bootstrap 幂等+teardown；数据读写 schemaVersion 校验+迁移钩子；启动/加载文案本地化；新增 SwiftLint 配置与关键单测。

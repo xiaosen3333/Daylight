@@ -275,6 +275,9 @@ struct DaylightDateHelper {
         return ParsedNightWindow(startMinutes: 22 * 60 + 30, endMinutes: 30, crossesMidnight: true)
     }
 
+}
+
+extension DaylightDateHelper {
     func nightTimeline(settings: Settings, now: Date = Date(), dayKeyOverride: String? = nil) -> NightTimeline {
         var cal = calendar
         cal.timeZone = timeZone
