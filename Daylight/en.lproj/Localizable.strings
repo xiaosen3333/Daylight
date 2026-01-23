@@ -115,6 +115,11 @@
 "settings.night.disable.confirm" = "No more reminders tonight. You can turn them back on in Settings.";
 "settings.language.section" = "Language";
 "settings.language.system" = "System";
+"settings.support.section" = "Support us";
+"settings.support.rate" = "Rate us";
+"settings.support.feedback" = "Send feedback";
+"settings.support.feedback.subject" = "Daylight feedback";
+"settings.support.feedback.body" = "Hi Daylight team,\n\nMy feedback:\n\n---\nVersion: %@\nDevice: %@ (iOS %@)\nTime zone: %@\n";
 "settings.dev.section" = "Developer";
 "settings.dev.goto.night" = "Open night guard page";
 "settings.notification.showCommitment" = "Show my line in notifications";

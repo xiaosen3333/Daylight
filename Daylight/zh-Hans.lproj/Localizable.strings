@@ -116,6 +116,11 @@
 "settings.night.disable.confirm" = "今晚不再提醒，可在设置重新开启";
 "settings.language.section" = "语言";
 "settings.language.system" = "跟随系统";
+"settings.support.section" = "支持我们";
+"settings.support.rate" = "评分支持我们";
+"settings.support.feedback" = "给我们建议";
+"settings.support.feedback.subject" = "Daylight 建议";
+"settings.support.feedback.body" = "你好，Daylight 团队：\n\n我的建议：\n\n---\n版本：%@\n设备：%@ (iOS %@)\n时区：%@\n";
 "settings.dev.section" = "开发调试";
 "settings.dev.goto.night" = "跳转到夜间守护页";
 "settings.notification.showCommitment" = "在通知中显示我写下的句子";

@@ -58,6 +58,7 @@ extension TodayViewModel {
             if state.record == nil || state.record?.date == record.date {
                 state.record = record
             }
+            requestReviewIfEligible(record: record, now: now)
             try await refreshLightChain()
             try await refreshStreak()
             await scheduleNotifications()

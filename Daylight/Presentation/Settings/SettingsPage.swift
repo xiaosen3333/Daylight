@@ -4,7 +4,7 @@ import Combine
 struct SettingsPage: View {
     @ObservedObject var viewModel: TodayViewModel
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
+    @Environment(\.openURL) var openURL
 
     @StateObject var settingsSaver = DebouncedSettingsSaver()
 
@@ -33,6 +33,7 @@ struct SettingsPage: View {
                     NotificationSettingsView(section: notificationSection,
                                              warningText: nightWindowWarning)
                     SettingsSectionView(section: languageSection)
+                    SettingsSectionView(section: supportSection)
                     if showSyncStatusBar {
                         SyncSettingsView(content: syncStatusBar)
                     }

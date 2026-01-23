@@ -21,6 +21,7 @@ final class TodayViewModel: ObservableObject {
     let statsLoader: TodayStatsLoader
     let suggestionsProvider: TodaySuggestionsProvider
     let navigationRouter: TodayNavigationRouter
+    let reviewPromptStore: ReviewPromptStore
     var dateHelper: DaylightDateHelper
     var notificationCoordinator: TodayNotificationCoordinator
     let timeObserver: TodayTimeObserver
@@ -39,6 +40,7 @@ final class TodayViewModel: ObservableObject {
          syncReplayer: SyncReplayer,
          suggestionsProvider: TodaySuggestionsProvider = TodaySuggestionsProvider(),
          navigationRouter: TodayNavigationRouter = TodayNavigationRouter(),
+         reviewPromptStore: ReviewPromptStore = ReviewPromptStore(),
          statsLoader: TodayStatsLoader? = nil,
          timeObserver: TodayTimeObserver? = nil,
          notificationCoordinator: TodayNotificationCoordinator? = nil) {
@@ -48,6 +50,7 @@ final class TodayViewModel: ObservableObject {
         self.syncReplayer = syncReplayer
         self.suggestionsProvider = suggestionsProvider
         self.navigationRouter = navigationRouter
+        self.reviewPromptStore = reviewPromptStore
         self.statsLoader = statsLoader ?? TodayStatsLoader(loadLightChain: useCases.loadLightChain,
                                                           getStreak: useCases.getStreak,
                                                           loadMonth: useCases.loadMonth)

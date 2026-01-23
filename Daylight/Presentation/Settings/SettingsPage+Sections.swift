@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 extension SettingsPage {
     var settingsForm: SettingsForm {
@@ -87,6 +88,21 @@ extension SettingsPage {
                         )
                     )
                 )
+            ]
+        )
+    }
+
+    var supportSection: SettingsSection {
+        SettingsSection(
+            id: "support",
+            title: NSLocalizedString("settings.support.section", comment: ""),
+            rows: [
+                SettingsRow(id: "rateUs", type: .action(title: NSLocalizedString("settings.support.rate", comment: "")) {
+                    sendReviewToAppStore()
+                }),
+                SettingsRow(id: "feedback", type: .action(title: NSLocalizedString("settings.support.feedback", comment: "")) {
+                    sendFeedbackEmail()
+                })
             ]
         )
     }
@@ -202,6 +218,39 @@ extension SettingsPage {
         guard let date else { return nil }
         let text = SettingsPage.retryFormatter.string(from: date)
         return "\(NSLocalizedString("settings.sync.nextRetry", comment: "")): \(text)"
+    }
+
+    func sendFeedbackEmail() {
+        guard let url = feedbackMailURL() else { return }
+        openURL(url)
+    }
+
+    func sendReviewToAppStore() {
+        guard let url = appStoreReviewURL() else { return }
+        openURL(url)
+    }
+
+    func feedbackMailURL() -> URL? {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "xiaosen3@outlook.com"
+        let subject = NSLocalizedString("settings.support.feedback.subject", comment: "")
+        let bodyTemplate = NSLocalizedString("settings.support.feedback.body", comment: "")
+        let body = String(format: bodyTemplate,
+                          ReviewPromptStore.currentAppVersion,
+                          UIDevice.current.model,
+                          UIDevice.current.systemVersion,
+                          TimeZone.current.identifier)
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return components.url
+    }
+
+    func appStoreReviewURL() -> URL? {
+        let appId = "6755951431"
+        return URL(string: "itms-apps://apps.apple.com/app/id\(appId)?action=write-review")
     }
 
     private static let retryFormatter: DateFormatter = {

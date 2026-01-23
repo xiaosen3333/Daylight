@@ -1,5 +1,67 @@
 # Daylight PRD（MVP 存档）
 
+## 新版本更新（1.4.19）
+- 目的：完成评分引导与建议入口升级（无自定义弹窗）；Today 触发系统评分弹窗，设置页“评分支持我们”改为直达 App Store 评价页；版本号 1.4.19。
+- 范围：Today 成功点亮双灯后触发评分请求；Settings 新增“支持我们”区块（评分直达 App Store + 邮件建议）；新增 ReviewPromptStore 统一频控（冷却 + 版本内最多一次，仅用于自动触发）；MARKETING_VERSION 同步。
+- 影响面：仅 Today/Settings/ReviewPromptStore/本地化与版本号更新；通知/同步/路由/夜间守护等逻辑不改；新入口复用 DesignSystem 的 SettingsSection/Row 组件，不新增自定义弹窗。
+- 验收要点：满足触发条件且频控允许时，Today 直接弹出系统评分；设置页“评分支持我们”打开 App Store 写评价页；“给我们建议”仅打开 mailto 邮件；自动触发同版本内最多一次且冷却期内不重复触发；`xcodebuild -project Daylight.xcodeproj -scheme Daylight -destination 'generic/platform=iOS Simulator' build` 通过。
+
+### ASCII 原型（Today 触发系统评分，无自定义 UI）
+```
+TodayView
++------------------------------------------------------+
+| (触发条件满足：dayLightStatus==.on && nightLightStatus==.on)
+|   └──> requestReview(in: scene)
++------------------------------------------------------+
+
+系统评分弹窗（SKStoreReviewController）
+┌─────────────────────────────┐
+| 给 Daylight 打分？            |
+| ★ ★ ★ ★ ★                    |
+| [ 取消 ]            [ 评分 ] |
+└─────────────────────────────┘
+```
+
+### ASCII 原型（设置页“支持我们”）
+```
+SettingsPage
++------------------------------------------------------+
+| ...                                                  |
+| [ Language Section ]                                 |
+|                                                      |
+| ┌ 支持我们 (bgOverlay08, radius card) ┐              |
+| │ [ 评分支持我们 ]  open App Store review            │
+| │ [ 给我们建议 ]    SettingsRow.action │             |
+| └─────────────────────────────────────┘             |
+|                                                      |
+| [ Dev Section ]                                      |
++------------------------------------------------------+
+```
+
+### ASCII 原型（建议入口：仅邮箱）
+```
+系统邮件撰写（mailto）
+┌────────────────────────────────┐
+| 收件人: xiaosen3@outlook.com    |
+| 主题: Daylight 建议             |
+| 内容: (可预填版本/设备/时区)     |
+| [ 发送 ]              [ 取消 ]  |
+└────────────────────────────────┘
+```
+
+### 技术架构与要点更新
+- TodayViewModel+Commitment：confirmSleepNow 成功后检查当日 record 双灯全亮，满足频控则调用 `SKStoreReviewController.requestReview(in:)`。
+- ReviewPromptStore（新增）：UserDefaults 持久化 `lastPromptAt/lastPromptVersion/lastAction`；规则为冷却期（默认 30 天）+ 版本内最多一次，避免频繁调用并尊重系统频控。
+- SettingsPage：新增“支持我们”区块，复用 SettingsSection/Row/DaylightGhostButton；评分按钮直达 App Store 评价页（`itms-apps://apps.apple.com/app/id6755951431?action=write-review`）；建议入口仅 mailto。
+- 设计与多语言：不新增自定义弹窗或新组件；文案新增中英文本地化，邮件内容可预填版本/设备/时区。
+
+### 实现 TODO（执行顺序）
+1. 新增 ReviewPromptStore 并集成到 TodayViewModel（注入 + 频控规则）。
+2. 在 confirmSleepNow 成功后触发评分请求（双灯全亮 + 频控允许）。
+3. Settings 新增“支持我们”区块（评分直达 App Store / 建议 mailto）。
+4. 完成本地化文案 + MARKETING_VERSION 更新至 1.4.19。
+5. 全量自检并执行构建/测试命令，确保无回归。
+
 ## 新版本更新（1.4.18）
 - 目的：修复 NightGuard 未写承诺态同帧双导航导致偶发空白页，补强夜间提醒窗口校验避免超长跨日误判；版本号 1.4.18。
 - 范围：NightGuardPage 未写承诺 CTA 异步导航 DayCommitment；SettingsPage 夜间提醒窗口校验新增最大时长（12h）限制；MARKETING_VERSION 同步。
@@ -9,8 +71,8 @@
 ### ASCII 原型（NightGuard 未写承诺态）
 ```
 夜晚页（未写承诺 notEligible）
-┌ NightGuard (bgNight) ┐
-│  🌙  [GlowingMoon]   │
+┌ NightGuard (bgNight)─────────────────────────┐
+│  🌙  [GlowingMoon]                           │
 │  标题: night.state.notReady.title (金色)      │
 │  正文: night.subtitle.notReady (白色次级)     │
 │                                               │
