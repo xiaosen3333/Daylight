@@ -1,7 +1,5 @@
 # Daylight
 
-[![iOS CI](https://github.com/xiaosen3333/Daylight/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/xiaosen3333/Daylight/actions/workflows/ios-ci.yml)
-
 [中文 README](README.md)
 
 > ✅ DayLight is already live on the App Store (search `DayLight`)  
@@ -54,7 +52,7 @@ one promise, two lamps, a kinder path out of late nights.
 
 - Product definition: behavior model, MVP scope, interaction rhythm.
 - Client implementation: `SwiftUI + MVVM + UseCase + Repository`.
-- Engineering setup: local data migration, notification scheduling, tests, lint, CI.
+- Engineering setup: local data migration, notification scheduling, tests, and quality checks.
 - Documentation and delivery: architecture docs, feature specs, design system, iteration shipping.
 
 ## Quick start
@@ -106,7 +104,7 @@ See [docs/Daylight-architecture-swift.md](docs/Daylight-architecture-swift.md) f
 
 - Clear layered boundaries (`Presentation / Domain / Data / Core`)
 - Repeatable command entry points (`Makefile`)
-- Static checks + unit tests + GitHub Actions quality gates
+- Static checks + unit-test quality gates (local execution)
 - End-to-end product-to-delivery execution
 
 ## Repository structure
@@ -122,17 +120,9 @@ Daylight/
 │   └── DesignSystem/
 ├── DaylightTests/            # Unit tests
 ├── docs/                     # Product/architecture/design docs
-├── .github/workflows/        # CI pipelines
 ├── Makefile
 └── README.md
 ```
-
-## CI
-
-GitHub Actions workflow: `.github/workflows/ios-ci.yml`
-
-- SwiftLint strict mode
-- iOS Simulator build + test (`xcodebuild test`)
 
 ## More docs
 

@@ -1,7 +1,5 @@
 # Daylight
 
-[![iOS CI](https://github.com/xiaosen3333/Daylight/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/xiaosen3333/Daylight/actions/workflows/ios-ci.yml)
-
 [English README](README.en.md)
 
 > ✅ DayLight 已上架 App Store（可在商店搜索 `DayLight`）  
@@ -54,7 +52,7 @@ DayLight 想给你的不是完美作息表，而是一个真正可持续的起�
 
 - 产品定义：核心行为模型、MVP 范围、交互节奏。
 - 客户端实现：`SwiftUI + MVVM + UseCase + Repository`。
-- 工程建设：本地存储迁移、通知调度、测试、Lint、CI。
+- 工程建设：本地存储迁移、通知调度、测试与质量检查流程。
 - 文档与交付：架构文档、规格文档、设计系统、版本迭代。
 
 ## 快速开始
@@ -106,7 +104,7 @@ flowchart LR
 
 - 清晰分层与职责边界（`Presentation / Domain / Data / Core`）
 - 可重复执行命令（`Makefile`）
-- 静态检查 + 单测 + GitHub Actions 质量门禁
+- 静态检查 + 单测质量门禁（本地执行）
 - 从产品想法到可交付 App 的完整落地能力
 
 ## 仓库结构
@@ -122,17 +120,9 @@ Daylight/
 │   └── DesignSystem/
 ├── DaylightTests/            # Unit tests
 ├── docs/                     # Product/architecture/design docs
-├── .github/workflows/        # CI pipelines
 ├── Makefile
 └── README.en.md
 ```
-
-## CI
-
-GitHub Actions workflow: `.github/workflows/ios-ci.yml`
-
-- SwiftLint 严格模式
-- iOS Simulator build + test (`xcodebuild test`)
 
 ## 更多文档
 
