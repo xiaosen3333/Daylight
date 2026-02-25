@@ -4,21 +4,58 @@
 
 [English README](README.en.md)
 
-Daylight 是我独立设计和实现的 iOS 行为养成产品，目标是帮助用户降低熬夜频率。  
-这个仓库用于展示我的移动端工程能力：产品抽象、架构设计、可测试性、质量门禁、交付规范。
+> ✅ DayLight 已上架 App Store（可在商店搜索 `DayLight`）  
+> 🌐 官网：[day-light-langding-page.vercel.app](https://day-light-langding-page.vercel.app)
 
-## 这个项目做什么
+总说今晚早点睡，却一刷就到两点？  
+DayLight 用每天「两盏灯」这个极简仪式，让白天的你守护夜晚的你，帮助你戒掉报复性熬夜。
 
-- 提供 `今日之灯 / 夜间守护 / 灯链` 三条核心体验。
-- 以本地优先模式运行：离线可用，支持待同步队列回放。
-- 使用可扩展分层架构，兼容后续接入真实后端与会员能力。
+## 产品是怎么工作的
+
+### 白天：写下一句给自己的承诺
+
+每天白天，DayLight 会轻轻问你：
+
+> 今晚如果不熬夜，你会得到什么？
+
+你可以自己写一句，也可以从智能推荐中选择。  
+点击确认，点亮第一盏灯。这是白天的你留给夜晚自己的提醒。
+
+### 夜晚：在关键时刻收到温柔提醒
+
+接近你设定的睡觉时间，DayLight 会弹出白天那句承诺：
+
+> 白天的你留了这样一句话给你：...
+
+你可以放下手机，点亮第二盏灯，完成今天的「两灯闭环」。  
+如果你还是想再刷一会儿，灯会悄悄熄灭，只留下“可惜”，而不是“内疚”。
+
+### 灯链：把坚持变成一串温暖的光
+
+每天点亮两盏灯，就会连成一条灯链。  
+断了也没关系，明天继续点亮就好。
+
+### 不焦虑、不惩罚
+
+- 没有复杂图表和红色警告
+- 不用盯着“只睡了几小时”自责
+- 用最小干预帮助行为改变
+
+## DayLight 适合谁
+
+- 晚上刷手机停不下来，常常“再看五分钟”就过点
+- 白天精神状态差，后悔又熬夜
+- 不想重做整套作息系统，只想先早点睡一点
+
+DayLight 想给你的不是完美作息表，而是一个真正可持续的起点：  
+从今天开始，让白天的你，守护夜晚的你。
 
 ## 我负责了什么
 
-- 产品定义：功能流程、MVP 范围、迭代节奏。
+- 产品定义：核心行为模型、MVP 范围、交互节奏。
 - 客户端实现：`SwiftUI + MVVM + UseCase + Repository`。
 - 工程建设：本地存储迁移、通知调度、测试、Lint、CI。
-- 文档体系：架构文档、规格文档、设计系统、工程手册。
+- 文档与交付：架构文档、规格文档、设计系统、版本迭代。
 
 ## 快速开始
 
@@ -36,7 +73,7 @@ cd Daylight
 open Daylight.xcodeproj
 ```
 
-在 Xcode 中直接运行 `Daylight` scheme。
+在 Xcode 中运行 `Daylight` scheme。
 
 ### 运行质量检查
 
@@ -65,12 +102,12 @@ flowchart LR
 |---|---|---|---|---|
 | ![zh-1](docs/store-shots/zh/1.png) | ![zh-2](docs/store-shots/zh/2.png) | ![zh-3](docs/store-shots/zh/3.png) | ![zh-4](docs/store-shots/zh/4.png) | ![zh-5](docs/store-shots/zh/5.png) |
 
-## 这个仓库体现的工程习惯
+## 这个仓库体现的工程能力
 
-- 明确分层目录与职责边界（`Presentation / Domain / Data / Core`）。
-- 可重复执行的命令入口（`Makefile`）。
-- 静态检查 + 单测 + GitHub Actions 质量门禁。
-- 统一提交风格（Conventional Commits，见 `CONTRIBUTING.md`）。
+- 清晰分层与职责边界（`Presentation / Domain / Data / Core`）
+- 可重复执行命令（`Makefile`）
+- 静态检查 + 单测 + GitHub Actions 质量门禁
+- 从产品想法到可交付 App 的完整落地能力
 
 ## 仓库结构
 
@@ -87,7 +124,7 @@ Daylight/
 ├── docs/                     # Product/architecture/design docs
 ├── .github/workflows/        # CI pipelines
 ├── Makefile
-└── CONTRIBUTING.md
+└── README.en.md
 ```
 
 ## CI
