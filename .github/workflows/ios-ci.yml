@@ -26,5 +26,8 @@ jobs:
       - name: Lint
         run: make lint
 
+      - name: Show Available Destinations
+        run: xcodebuild -project Daylight.xcodeproj -scheme Daylight -showdestinations
+
       - name: Test
         run: make test

@@ -9,12 +9,14 @@ lint:
 	swiftlint lint --strict
 
 build:
-	@SIM_ID=$$($(RESOLVE_SIMULATOR) "$(PROJECT)" "$(SCHEME)" "$(SIMULATOR)"); \
+	@set -e; \
+	SIM_ID=$$($(RESOLVE_SIMULATOR) "$(PROJECT)" "$(SCHEME)" "$(SIMULATOR)"); \
 	echo "Using iOS Simulator id=$$SIM_ID"; \
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination "id=$$SIM_ID" CODE_SIGNING_ALLOWED=NO build
 
 test:
-	@SIM_ID=$$($(RESOLVE_SIMULATOR) "$(PROJECT)" "$(SCHEME)" "$(SIMULATOR)"); \
+	@set -e; \
+	SIM_ID=$$($(RESOLVE_SIMULATOR) "$(PROJECT)" "$(SCHEME)" "$(SIMULATOR)"); \
 	echo "Using iOS Simulator id=$$SIM_ID"; \
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination "id=$$SIM_ID" CODE_SIGNING_ALLOWED=NO test
 
